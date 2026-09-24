@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Презентация: Работа с JSON</title>
+    <style>
+        :root {
+            --bg-dark: #07090f;
+            --bg-slide: #0d1117;
+            --neon-cyan: #00f5d4;
+            --neon-magenta: #f15bb5;
+            --neon-yellow: #fee440;
+            --text-main: #f8f9fa;
+            --text-muted: #8b949e;
+            --code-bg: #161b22;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Запрещаем прокрутку */
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+        }
+
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(50px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-slide);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            z-index: 2;
+        }
+
+        .slide.prev {
+            transform: translateX(-50px);
+        }
+
+        /* Фоновые неоновые пятна */
+        .slide::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.15;
+            z-index: 0;
+        }
+        .slide-1::before { background: var(--neon-magenta); top: -150px; left: -150px; }
+        .slide-2::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+        .slide-3::before { background: var(--neon-yellow); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-4::before { background: var(--neon-magenta); bottom: -150px; left: -150px; }
+        .slide-5::before { background: var(--neon-cyan); top: -150px; right: -150px; }
+        .slide-6::before { background: var(--neon-yellow); bottom: -150px; right: -150px; }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 50px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 20px rgba(0, 245, 212, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        /* Скроллбар внутри контента */
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-track { background: transparent; }
+        .content::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 10px; }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 2.4rem;
+            margin-bottom: 25px;
+            color: var(--neon-yellow);
+            border-left: 6px solid var(--neon-magenta);
+            padding-left: 20px;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            color: var(--neon-cyan);
+            margin-bottom: 10px;
+        }
+
+        p, li {
+            font-size: 1.25rem;
+            line-height: 1.6;
+            color: var(--text-main);
+            margin-bottom: 15px;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        li::before {
+            content: "▹";
+            color: var(--neon-magenta);
+            font-weight: bold;
+            display: inline-block; 
+            width: 1.5em;
+        }
+
+        .highlight { color: var(--neon-cyan); font-weight: bold; }
+        .highlight-yellow { color: var(--neon-yellow); font-weight: bold; }
+        .highlight-magenta { color: var(--neon-magenta); font-weight: bold; }
+
+        pre {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin: 20px 0;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: #e2e8f0;
+        }
+
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .function { color: #8be9fd; }
+        .comment { color: #6272a4; font-style: italic; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 25px;
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--neon-cyan);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .badge-cyan { background: rgba(0, 245, 212, 0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
+        .badge-magenta { background: rgba(241, 91, 181, 0.15); color: var(--neon-magenta); border: 1px solid var(--neon-magenta); }
+        .badge-yellow { background: rgba(254, 228, 64, 0.15); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); }
+
+        .subtitle {
+            text-align: center;
+            font-size: 1.4rem;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+        }
+
+        /* Навигация */
+        .nav-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+            background: rgba(13, 17, 23, 0.9);
+            padding: 10px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: var(--neon-cyan);
+            color: var(--bg-dark);
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
+        .nav-btn:disabled {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+            box-shadow: none;
+            background: transparent;
+        }
+
+        .slide-counter {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--text-main);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            transition: width 0.4s ease;
+            z-index: 100;
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            h1 { font-size: 2.2rem; }
+            h2 { font-size: 1.6rem; }
+            .content { padding: 30px 20px; }
+            p, li { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+  <!-- Кнопка возврата на главную -->
+<div style="position:fixed;top:12px;left:12px;z-index:99999;">
+  <a href="index.html" style="
+    display:inline-block;
+    padding:10px 18px;
+    background:#ffd866;
+    color:#1e1e2e;
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:bold;
+    font-family:sans-serif;
+    font-size:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    transition:background 0.2s;
+  " onmouseover="this.style.background='#fff'" 
+     onmouseout="this.style.background='#ffd866'">
+    ← На главную
+  </a>
+</div>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="presentation" id="presentation">
+        
+        <!-- Слайд 1: Титульный -->
+        <section class="slide slide-1 active">
+            <div class="content" style="text-align: center;">
+                <h1>Работа с JSON файлами</h1>
+                <p class="subtitle">Структурированное хранение данных в Python</p>
+                <div style="margin-top: 40px; font-size: 1.2rem; color: var(--text-muted);">
+                    <p>Как сохранить сложные данные (с тегами и переносами строк) так, <br>чтобы их было легко читать, изменять и использовать в программе?</p>
+                </div>
+                <div style="margin-top: 50px; color: var(--neon-cyan); font-size: 1rem; opacity: 0.7;">
+                    Используйте стрелки на клавиатуре (← →) или кнопки внизу экрана
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 2: Проблема и Решение -->
+        <section class="slide slide-2">
+            <div class="content">
+                <h2>Проблема и Решение</h2>
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Проблема</span>
+                        <p>Нужна структура для удобного хранения сложных заметок (с текстом, тегами, переходами на новые строки).</p>
+                        <p style="color: var(--neon-magenta);">Обычные текстовые файлы слишком тяжело читать и записывать!</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Решение</span>
+                        <p>Использовать <span class="highlight">JSON файлы</span> — файлы с готовой структурой данных, которые используют программисты по всему миру.</p>
+                        <p style="color: var(--neon-cyan);">Структура в файле и в программе будет <b>идентична</b>!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 3: Что такое JSON -->
+        <section class="slide slide-3">
+            <div class="content">
+                <h2>Что такое JSON?</h2>
+                <p><span class="highlight">JSON</span> — это текстовый формат с готовой структурой, удобной для чтения и использования.</p>
+                <p>Структура JSON файла очень похожа на систему <span class="highlight-yellow">вложенных словарей и списков</span> в Python.</p>
+                
+                <pre><code>{
+  <span class="string">"О планетах"</span>: {
+    <span class="string">"текст"</span>: <span class="string">"Что если вода на Марсе это признак жизни?"</span>,
+    <span class="string">"теги"</span>: [<span class="string">"Марс"</span>, <span class="string">"гипотезы"</span>]
+  },
+  <span class="string">"О чёрных дырах"</span>: {
+    <span class="string">"текст"</span>: <span class="string">"Сингулярность на горизонте событий отсутствует"</span>,
+    <span class="string">"теги"</span>: [<span class="string">"чёрные дыры"</span>, <span class="string">"факты"</span>]
+  }
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- Слайд 4: Чтение (Загрузка) -->
+        <section class="slide slide-4">
+            <div class="content">
+                <h2>Загрузка данных (Чтение)</h2>
+                <p>Для работы используется встроенная библиотека <code class="keyword">json</code>. Метод <code class="function">json.load()</code> преобразует JSON-файл обратно в словарь Python.</p>
+                
+                <pre><code><span class="keyword">import</span> json
+
+<span class="comment"># Открываем файл для чтения (r)</span>
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes_data.json"</span>, <span class="string">"r"</span>, encoding=<span class="string">"utf-8"</span>) <span class="keyword">as</span> file:
+    <span class="comment"># Загружаем структуру из файла в словарь data</span>
+    data = json.<span class="function">load</span>(file)
+
+<span class="comment"># Теперь data - это обычный словарь Python!</span>
+<span class="function">print</span>(data[<span class="string">"О планетах"</span>][<span class="string">"текст"</span>])</code></pre>
+                
+                <p style="color: var(--neon-cyan); margin-top: 15px; font-weight: bold;">💡 После чтения переменная <code>data</code> имеет точно такую же структуру, как и сам JSON файл.</p>
+            </div>
+        </section>
+
+        <!-- Слайд 5: Запись (Выгрузка) -->
+        <section class="slide slide-5">
+            <div class="content">
+                <h2>Выгрузка данных (Запись)</h2>
+                <p>Метод <code class="function">json.dump()</code> сохраняет словарь Python в файл. <span class="highlight-magenta">Важно:</span> JSON файл при этом <b>полностью перезаписывается</b>!</p>
+                
+                <pre><code><span class="keyword">import</span> json
+
+<span class="comment"># Открываем файл для перезаписи (w)</span>
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes_data.json"</span>, <span class="string">"w"</span>, encoding=<span class="string">"utf-8"</span>) <span class="keyword">as</span> file:
+    <span class="comment"># Записываем словарь data в файл</span>
+    json.<span class="function">dump</span>(data, file, ensure_ascii=<span class="keyword">False</span>, sort_keys=<span class="keyword">True</span>)</code></pre>
+
+                <div class="grid-2" style="margin-top: 20px;">
+                    <div class="card">
+                        <h3>ensure_ascii=False</h3>
+                        <p>Позволяет записывать русские символы в читаемом виде, а не в формате Unicode-экранирования.</p>
+                    </div>
+                    <div class="card">
+                        <h3>sort_keys=True</h3>
+                        <p>Автоматически сортирует главные ключи (названия заметок) по алфавиту при записи.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 6: Создание файла -->
+        <section class="slide slide-6">
+            <div class="content">
+                <h2>Создание JSON файла</h2>
+                <p>Существует два способа создать файл формата <code>.json</code>:</p>
+                
+                <div class="grid-2" style="margin-top: 30px;">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Способ 1: Вручную</span>
+                        <p>В папке проекта создать пустой файл и дать ему расширение <span class="highlight">.json</span> (например, <code>data.json</code>).</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Способ 2: Программно</span>
+                        <p>При первой же записи (выгрузке) данных через <code>json.dump()</code> файл будет <span class="highlight">создан автоматически</span>, если его не существовало.</p>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 40px; text-align: center; padding: 20px; background: rgba(0,245,212,0.05); border-radius: 15px; border: 1px dashed var(--neon-cyan);">
+                    <p style="margin: 0; color: var(--neon-cyan); font-size: 1.3rem; font-weight: bold;">Отличная работа! Теперь вы умеете хранить сложные данные.</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Панель навигации -->
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">&#10094;</button>
+        <span class="slide-counter" id="counter">1 / 6</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">&#10095;</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const counter = document.getElementById('counter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        function updatePresentation() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active', 'prev', 'next');
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                } else if (index < currentSlide) {
+                    slide.classList.add('prev');
+                } else {
+                    slide.classList.add('next');
+                }
+            });
+
+            // Обновляем счетчик
+            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+
+            // Обновляем прогресс-бар
+            const progress = ((currentSlide + 1) / totalSlides) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            // Блокируем кнопки на краях
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+        }
+
+        function changeSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+            updatePresentation();
+        }
+
+        // Управление с клавиатуры
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                changeSlide(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                changeSlide(-1);
+            }
+        });
+
+        // Инициализация
+        updatePresentation();
+    </script>
+</body>
+</html>
