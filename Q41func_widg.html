@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Виджеты PyQt5: Теория и методы</title>
+    <style>
+        :root {
+            --bg-dark: #07090f;
+            --bg-slide: #0d1117;
+            --neon-cyan: #00f5d4;
+            --neon-magenta: #f15bb5;
+            --neon-yellow: #fee440;
+            --neon-purple: #9d4edd;
+            --neon-green: #06ffa5;
+            --neon-orange: #ff9f43;
+            --text-main: #f8f9fa;
+            --text-muted: #8b949e;
+            --code-bg: #161b22;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+        }
+
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 40px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(50px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-slide);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            z-index: 2;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        .slide-1::before { background: var(--neon-magenta); top: -150px; left: -150px; }
+        .slide-2::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+        .slide-3::before { background: var(--neon-yellow); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-4::before { background: var(--neon-purple); bottom: -150px; left: -150px; }
+        .slide-5::before { background: var(--neon-green); top: -150px; right: -150px; }
+        .slide-6::before { background: var(--neon-orange); bottom: -150px; right: -150px; }
+        .slide-7::before { background: var(--neon-magenta); top: -150px; left: -150px; }
+        .slide-8::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+        .slide-9::before { background: var(--neon-yellow); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-10::before { background: var(--neon-purple); bottom: -150px; left: -150px; }
+        .slide-11::before { background: var(--neon-green); top: -150px; right: -150px; }
+        .slide-12::before { background: var(--neon-orange); bottom: -150px; right: -150px; }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(13, 17, 23, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 20px rgba(0, 245, 212, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-track { background: transparent; }
+        .content::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 10px; }
+
+        h1 {
+            font-size: 2.6rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: var(--neon-yellow);
+            border-left: 5px solid var(--neon-magenta);
+            padding-left: 18px;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            color: var(--neon-cyan);
+            margin: 15px 0 10px 0;
+        }
+
+        p, li {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: var(--text-main);
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 10px 0;
+        }
+
+        li::before {
+            content: "▹";
+            color: var(--neon-magenta);
+            font-weight: bold;
+            display: inline-block; 
+            width: 1.5em;
+        }
+
+        .highlight { color: var(--neon-cyan); font-weight: bold; }
+        .highlight-yellow { color: var(--neon-yellow); font-weight: bold; }
+        .highlight-magenta { color: var(--neon-magenta); font-weight: bold; }
+        .highlight-purple { color: var(--neon-purple); font-weight: bold; }
+        .highlight-green { color: var(--neon-green); font-weight: bold; }
+        .highlight-orange { color: var(--neon-orange); font-weight: bold; }
+
+        pre {
+            background: var(--code-bg);
+            border-radius: 10px;
+            padding: 15px;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin: 12px 0;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            line-height: 1.4;
+        }
+
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .function { color: #8be9fd; }
+        .comment { color: #6272a4; font-style: italic; }
+        .number { color: #bd93f9; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin: 15px 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            padding: 18px;
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--neon-cyan);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .badge-cyan { background: rgba(0, 245, 212, 0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
+        .badge-magenta { background: rgba(241, 91, 181, 0.15); color: var(--neon-magenta); border: 1px solid var(--neon-magenta); }
+        .badge-yellow { background: rgba(254, 228, 64, 0.15); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); }
+        .badge-purple { background: rgba(157, 78, 221, 0.15); color: var(--neon-purple); border: 1px solid var(--neon-purple); }
+        .badge-green { background: rgba(6, 255, 165, 0.15); color: var(--neon-green); border: 1px solid var(--neon-green); }
+        .badge-orange { background: rgba(255, 159, 67, 0.15); color: var(--neon-orange); border: 1px solid var(--neon-orange); }
+
+        .info-box {
+            background: rgba(0, 245, 212, 0.08);
+            border-left: 4px solid var(--neon-cyan);
+            padding: 12px 18px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .warning-box {
+            background: rgba(241, 91, 181, 0.08);
+            border-left: 4px solid var(--neon-magenta);
+            padding: 12px 18px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 1.3rem;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        .nav-controls {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+            background: rgba(13, 17, 23, 0.95);
+            padding: 10px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: var(--neon-cyan);
+            color: var(--bg-dark);
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
+        .nav-btn:disabled {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .slide-counter {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--text-main);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            transition: width 0.4s ease;
+            z-index: 100;
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px;
+            color: var(--neon-yellow);
+            border-bottom: 2px solid var(--neon-cyan);
+            font-size: 1rem;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.95rem;
+        }
+
+        .method-box {
+            background: rgba(0, 245, 212, 0.05);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 10px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+
+        .method-name {
+            color: var(--neon-cyan);
+            font-family: 'Consolas', monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.5rem; }
+            .content { padding: 20px; }
+            p, li { font-size: 1rem; }
+            code { font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+  <!-- Кнопка возврата на главную -->
+<div style="position:fixed;top:12px;left:12px;z-index:99999;">
+  <a href="index.html" style="
+    display:inline-block;
+    padding:10px 18px;
+    background:#ffd866;
+    color:#1e1e2e;
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:bold;
+    font-family:sans-serif;
+    font-size:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    transition:background 0.2s;
+  " onmouseover="this.style.background='#fff'" 
+     onmouseout="this.style.background='#ffd866'">
+    ← На главную
+  </a>
+</div>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="presentation" id="presentation">
+        
+        <!-- Слайд 1: Титульный -->
+        <section class="slide slide-1 active">
+            <div class="content" style="text-align: center;">
+                <h1>Виджеты PyQt5: Теория и методы</h1>
+                <p class="subtitle">Подробный разбор всех виджетов приложения «Умные заметки»</p>
+                <div style="margin-top: 30px;">
+                    <div class="grid-3">
+                        <div class="card" style="border-color: var(--neon-cyan);">
+                            <span class="badge badge-cyan">QListWidget</span>
+                            <p style="margin: 0; font-size: 0.95rem;">Списки заметок и тегов</p>
+                        </div>
+                        <div class="card" style="border-color: var(--neon-magenta);">
+                            <span class="badge badge-magenta">QTextEdit</span>
+                            <p style="margin: 0; font-size: 0.95rem;">Поле для текста заметки</p>
+                        </div>
+                        <div class="card" style="border-color: var(--neon-yellow);">
+                            <span class="badge badge-yellow">QLineEdit</span>
+                            <p style="margin: 0; font-size: 0.95rem;">Поле для ввода тега</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 30px; color: var(--text-muted); font-size: 1rem;">
+                    Используйте стрелки ← → или кнопки внизу для навигации
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 2: QListWidget - что это -->
+        <section class="slide slide-2">
+            <div class="content">
+                <h2>📋 QListWidget — виджет списка</h2>
+                
+                <div class="card" style="border-color: var(--neon-cyan); margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 1.15rem;">
+                        <span class="highlight">QListWidget</span> — это виджет для отображения <span class="highlight-yellow">списка элементов</span> (строк). 
+                        В нашем приложении используется для:
+                    </p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">list_notes</span>
+                        <h3 style="margin-top: 0;">Список заметок</h3>
+                        <p style="margin: 0; font-size: 1rem;">Показывает названия всех заметок. Пользователь может выбрать одну из них.</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">list_tags</span>
+                        <h3 style="margin-top: 0;">Список тегов</h3>
+                        <p style="margin: 0; font-size: 1rem;">Показывает теги выбранной заметки. Можно выбрать тег для удаления.</p>
+                    </div>
+                </div>
+
+                <pre><code><span class="comment"># Создание виджетов списков</span>
+list_notes = QListWidget()  <span class="comment"># Список заметок</span>
+list_tags = QListWidget()   <span class="comment"># Список тегов</span></code></pre>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Важно:</span> QListWidget хранит элементы как строки и позволяет работать с ними: добавлять, удалять, выбирать.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 3: QListWidget.addItem() -->
+        <section class="slide slide-3">
+            <div class="content">
+                <h2>➕ Метод addItem() — добавить один элемент</h2>
+                
+                <div class="method-box">
+                    <div class="method-name">list_notes.addItem("Текст элемента")</div>
+                    <p style="margin: 0;">Добавляет <b>один</b> элемент (строку) в конец списка</p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Пример 1</span>
+                        <pre><code><span class="comment"># Добавление названия заметки</span>
+note_name = <span class="string">"О планетах"</span>
+list_notes.<span class="function">addItem</span>(note_name)
+
+<span class="comment"># В списке появится:</span>
+<span class="comment"># • О планетах</span></code></pre>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Пример 2</span>
+                        <pre><code><span class="comment"># Добавление одного тега</span>
+tag = <span class="string">"Марс"</span>
+list_tags.<span class="function">addItem</span>(tag)
+
+<span class="comment"># В списке тегов появится:</span>
+<span class="comment"># • Марс</span></code></pre>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Используется в:</span> <code class="highlight-yellow">add_note()</code> — добавляет название новой заметки в список</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 4: QListWidget.addItems() -->
+        <section class="slide slide-4">
+            <div class="content">
+                <h2>➕➕ Метод addItems() — добавить несколько элементов</h2>
+                
+                <div class="method-box">
+                    <div class="method-name">list_notes.addItems(список_строк)</div>
+                    <p style="margin: 0;">Добавляет <b>несколько</b> элементов (список строк) в список</p>
+                </div>
+
+                <pre><code><span class="comment"># Пример 1: Добавление всех названий заметок при запуске</span>
+notes = {<span class="string">"О планетах"</span>: {...}, <span class="string">"О чёрных дырах"</span>: {...}}
+list_notes.<span class="function">addItems</span>(notes)
+
+<span class="comment"># Когда передаёте словарь, addItems берёт его ключи!</span>
+<span class="comment"># В списке появятся:</span>
+<span class="comment"># • О планетах</span>
+<span class="comment"># • О чёрных дырах</span>
+
+<span class="comment"># Пример 2: Добавление списка тегов</span>
+tags = [<span class="string">"Марс"</span>, <span class="string">"гипотезы"</span>, <span class="string">"космос"</span>]
+list_tags.<span class="function">addItems</span>(tags)
+
+<span class="comment"># В списке появятся:</span>
+<span class="comment"># • Марс</span>
+<span class="comment"># • гипотезы</span>
+<span class="comment"># • космос</span></code></pre>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Важно:</span> При передаче <b>словаря</b> в <code>addItems()</code>, Python автоматически использует <span class="highlight-yellow">только ключи</span> словаря!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 5: QListWidget.clear() -->
+        <section class="slide slide-5">
+            <div class="content">
+                <h2>🗑️ Метод clear() — очистить список</h2>
+                
+                <div class="method-box">
+                    <div class="method-name">list_tags.clear()</div>
+                    <p style="margin: 0;">Полностью <b>удаляет все элементы</b> из списка</p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Зачем нужно?</span>
+                        <p style="margin: 0; font-size: 1rem;">Перед добавлением новых элементов нужно очистить старые, чтобы не было дублирования!</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-green);">
+                        <span class="badge badge-green">Пример</span>
+                        <pre><code><span class="comment"># При выборе другой заметки:</span>
+list_tags.<span class="function">clear</span>()  <span class="comment"># Удалить старые теги</span>
+list_tags.<span class="function">addItems</span>(notes[key][<span class="string">"теги"</span>])  <span class="comment"># Добавить новые</span></code></pre>
+                    </div>
+                </div>
+
+                <pre><code><span class="comment"># Пример из функции show_note():</span>
+<span class="keyword">def</span> <span class="function">show_note</span>():
+    key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+    field_text.<span class="function">setText</span>(notes[key][<span class="string">"текст"</span>])
+    
+    list_tags.<span class="function">clear</span>()  <span class="comment"># Очищаем список тегов!</span>
+    list_tags.<span class="function">addItems</span>(notes[key][<span class="string">"теги"</span>])  <span class="comment"># Добавляем теги новой заметки</span></code></pre>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Без clear()</span> теги от разных заметок будут накапливаться в списке!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 6: QListWidget.selectedItems() -->
+        <section class="slide slide-6">
+            <div class="content">
+                <h2>☑️ Метод selectedItems() — получить выбранные элементы</h2>
+                
+                <div class="method-box">
+                    <div class="method-name">list_notes.selectedItems()</div>
+                    <p style="margin: 0;">Возвращает <b>список выбранных элементов</b> (объектов QListWidgetItem)</p>
+                </div>
+
+                <pre><code><span class="comment"># selectedItems() возвращает СПИСОК выбранных элементов</span>
+selected = list_notes.<span class="function">selectedItems</span>()
+
+<span class="comment"># Если выбран один элемент:</span>
+<span class="function">print</span>(<span class="function">len</span>(selected))  <span class="comment"># >>> 1</span>
+
+<span class="comment"># Чтобы получить текст первого выбранного элемента:</span>
+name = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+<span class="function">print</span>(name)  <span class="comment"># >>> "О планетах"</span></code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">[0]</span>
+                        <p style="margin: 0; font-size: 1rem;">Берём <b>первый</b> элемент из списка выбранных (индекс 0)</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">.text()</span>
+                        <p style="margin: 0; font-size: 1rem;">Получаем <b>текст</b> (название) этого элемента</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Используется в:</span> <code class="highlight-yellow">show_note(), save_note(), del_note(), add_tag(), del_tag()</code> — везде, где нужно узнать, какую заметку выбрал пользователь</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 7: QListWidget.itemClicked -->
+        <section class="slide slide-7">
+            <div class="content">
+                <h2>👆 Сигнал itemClicked — реакция на клик</h2>
+                
+                <div class="method-box">
+                    <div class="method-name">list_notes.itemClicked.connect(function)</div>
+                    <p style="margin: 0;"><b>Сигнал</b> (событие), который срабатывает при <span class="highlight-yellow">клике</span> на элемент списка</p>
+                </div>
+
+                <pre><code><span class="comment"># Подключение обработчика события</span>
+list_notes.itemClicked.<span class="function">connect</span>(show_note)
+
+<span class="comment"># Теперь при клике на любую заметку в списке</span>
+<span class="comment"># автоматически вызывается функция show_note()</span></code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">Как работает?</span>
+                        <ol style="margin: 10px 0 0 0; padding-left: 20px;">
+                            <li>Пользователь кликает на название заметки</li>
+                            <li>Срабатывает сигнал <code>itemClicked</code></li>
+                            <li>Вызывается функция <code>show_note()</code></li>
+                            <li>Функция отображает текст и теги заметки</li>
+                        </ol>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-green);">
+                        <span class="badge badge-green">Аналогия</span>
+                        <p style="margin: 0; font-size: 1rem;">Это как <b>обработчик событий</b> в JavaScript: <code>onclick</code> или <code>addEventListener('click', ...)</code></p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Это не метод, а сигнал!</span> Он не выполняет действия сам, а <span class="highlight-yellow">уведомляет</span> программу о событии.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 8: QTextEdit -->
+        <section class="slide slide-8">
+            <div class="content">
+                <h2>📝 QTextEdit — многострочное текстовое поле</h2>
+                
+                <div class="card" style="border-color: var(--neon-magenta); margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 1.15rem;">
+                        <span class="highlight">QTextEdit</span> — виджет для ввода и отображения <span class="highlight-yellow">многострочного текста</span>. 
+                        В нашем приложении показывает текст заметки.
+                    </p>
+                </div>
+
+                <pre><code><span class="comment"># Создание виджета</span>
+field_text = QTextEdit()</code></pre>
+
+                <h3>Основные методы:</h3>
+                
+                <div class="method-box">
+                    <div class="method-name">setText("Текст")</div>
+                    <p style="margin: 5px 0 0 0;">Установить текст в поле</p>
+                    <pre><code>field_text.<span class="function">setText</span>(notes[key][<span class="string">"текст"</span>])</code></pre>
+                </div>
+
+                <div class="method-box">
+                    <div class="method-name">toPlainText()</div>
+                    <p style="margin: 5px 0 0 0;">Получить текст из поля (как строку)</p>
+                    <pre><code>text = field_text.<span class="function">toPlainText</span>()
+notes[key][<span class="string">"текст"</span>] = text</code></pre>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Используется в:</span> <code class="highlight-yellow">show_note()</code> (setText), <code class="highlight-yellow">save_note()</code> (toPlainText)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 9: QLineEdit -->
+        <section class="slide slide-9">
+            <div class="content">
+                <h2>✏️ QLineEdit — однострочное поле ввода</h2>
+                
+                <div class="card" style="border-color: var(--neon-yellow); margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 1.15rem;">
+                        <span class="highlight">QLineEdit</span> — виджет для ввода <span class="highlight-yellow">одной строки текста</span>. 
+                        В нашем приложении используется для ввода нового тега.
+                    </p>
+                </div>
+
+                <pre><code><span class="comment"># Создание виджета</span>
+field_tag = QLineEdit()
+field_tag.<span class="function">setPlaceholderText</span>(<span class="string">"Введите тег..."</span>)</code></pre>
+
+                <h3>Основные методы:</h3>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">text()</span>
+                        <p style="margin: 0; font-size: 0.95rem;">Получить текст из поля</p>
+                        <pre><code>tag = field_tag.<span class="function">text</span>()</code></pre>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">clear()</span>
+                        <p style="margin: 0; font-size: 0.95rem;">Очистить поле</p>
+                        <pre><code>field_tag.<span class="function">clear</span>()</code></pre>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">setPlaceholderText()</span>
+                        <p style="margin: 0; font-size: 0.95rem;">Установить текст-подсказку (серый текст, когда поле пустое)</p>
+                        <pre><code>field_tag.<span class="function">setPlaceholderText</span>(<span class="string">"Введите тег..."</span>)</code></pre>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Используется в:</span> <code class="highlight-yellow">add_tag()</code> (text, clear), <code class="highlight-yellow">search_tag()</code> (text, clear)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 10: QPushButton -->
+        <section class="slide slide-10">
+            <div class="content">
+                <h2>🔘 QPushButton — кнопка</h2>
+                
+                <div class="card" style="border-color: var(--neon-orange); margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 1.15rem;">
+                        <span class="highlight">QPushButton</span> — виджет кнопки. 
+                        В нашем приложении 7 кнопок для различных действий.
+                    </p>
+                </div>
+
+                <pre><code><span class="comment"># Создание кнопок</span>
+button_note_create = QPushButton(<span class="string">"Создать заметку"</span>)
+button_tag_search = QPushButton(<span class="string">"Искать заметки по тегу"</span>)</code></pre>
+
+                <h3>Основные методы:</h3>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">clicked.connect()</span>
+                        <p style="margin: 0; font-size: 0.95rem;">Подключить функцию к событию клика</p>
+                        <pre><code>button_note_create.clicked.<span class="function">connect</span>(add_note)</code></pre>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">text()</span>
+                        <p style="margin: 0; font-size: 0.95rem;">Получить текст кнопки</p>
+                        <pre><code>btn_text = button_tag_search.<span class="function">text</span>()</code></pre>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">setText()</span>
+                        <p style="margin: 0; font-size: 0.95rem;">Изменить текст кнопки</p>
+                        <pre><code>button_tag_search.<span class="function">setText</span>(<span class="string">"Сбросить поиск"</span>)</code></pre>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Все кнопки в приложении:</span> <code class="highlight-yellow">button_note_create, button_note_del, button_note_save, button_tag_add, button_tag_del, button_tag_search</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 11: QInputDialog -->
+        <section class="slide slide-11">
+            <div class="content">
+                <h2>💬 QInputDialog — диалоговое окно ввода</h2>
+                
+                <div class="card" style="border-color: var(--neon-purple); margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 1.15rem;">
+                        <span class="highlight">QInputDialog</span> — стандартное диалоговое окно для ввода данных. 
+                        В нашем приложении используется для запроса названия новой заметки.
+                    </p>
+                </div>
+
+                <pre><code><span class="keyword">def</span> <span class="function">add_note</span>():
+    note_name, ok = QInputDialog.<span class="function">getText</span>(
+        notes_win,                    <span class="comment"># Родительское окно</span>
+        <span class="string">"Добавить заметку"</span>,           <span class="comment"># Заголовок окна</span>
+        <span class="string">"Название заметки: "</span>         <span class="comment"># Подпись поля ввода</span>
+    )</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Возвращает</span>
+                        <ul style="margin: 10px 0 0 0;">
+                            <li><code>note_name</code> — введённый текст</li>
+                            <li><code>ok</code> — True, если нажали OK; False, если отменили</li>
+                        </ul>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Проверка</span>
+                        <pre><code><span class="keyword">if</span> ok <span class="keyword">and</span> note_name != <span class="string">""</span>:
+    <span class="comment"># Создаём заметку</span>
+<span class="keyword">else</span>:
+    <span class="comment"># Пользователь отменил ввод</span>
+    <span class="comment"># или ввёл пустую строку</span></code></pre>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Используется только в:</span> <code class="highlight-yellow">add_note()</code> — для запроса названия новой заметки</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 12: QLabel и QWidget -->
+        <section class="slide slide-12">
+            <div class="content">
+                <h2>🏷️ QLabel и QWidget — базовые виджеты</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">QLabel</span>
+                        <h3 style="margin-top: 0;">Текстовая метка</h3>
+                        <p style="margin: 0; font-size: 1rem;">Отображает неподвижный текст (заголовки, подписи)</p>
+                        <pre><code>list_notes_label = QLabel(<span class="string">"Список заметок"</span>)
+list_tags_label = QLabel(<span class="string">"Список тегов"</span>)</code></pre>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-green);">
+                        <span class="badge badge-green">QWidget</span>
+                        <h3 style="margin-top: 0;">Базовое окно</h3>
+                        <p style="margin: 0; font-size: 1rem;">Основное окно приложения, контейнер для всех виджетов</p>
+                        <pre><code>notes_win = QWidget()
+notes_win.<span class="function">setWindowTitle</span>(<span class="string">"Умные заметки"</span>)
+notes_win.<span class="function">resize</span>(<span class="number">900</span>, <span class="number">600</span>)</code></pre>
+                    </div>
+                </div>
+
+                <h3>Основные методы QWidget:</h3>
+                <div class="grid-3">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">setWindowTitle()</span>
+                        <p style="margin: 0; font-size: 0.9rem;">Установить заголовок окна</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">resize()</span>
+                        <p style="margin: 0; font-size: 0.9rem;">Задать размер окна (ширина, высота)</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">show()</span>
+                        <p style="margin: 0; font-size: 0.9rem;">Показать окно на экране</p>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin-top: 20px;">
+                    <p style="margin: 0;"><span class="highlight">Итог:</span> Все виджеты размещаются внутри <code>notes_win</code> (QWidget) с помощью лэйаутов (QVBoxLayout, QHBoxLayout)</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Панель навигации -->
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">&#10094;</button>
+        <span class="slide-counter" id="counter">1 / 12</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">&#10095;</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const counter = document.getElementById('counter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        function updatePresentation() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                }
+            });
+
+            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+            
+            const progress = ((currentSlide + 1) / totalSlides) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+        }
+
+        function changeSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+            updatePresentation();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                changeSlide(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                changeSlide(-1);
+            }
+        });
+
+        updatePresentation();
+    </script>
+</body>
+</html>
