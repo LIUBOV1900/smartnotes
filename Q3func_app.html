@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умные заметки: Разбор функций</title>
+    <style>
+        :root {
+            --bg-dark: #07090f;
+            --bg-slide: #0d1117;
+            --neon-cyan: #00f5d4;
+            --neon-magenta: #f15bb5;
+            --neon-yellow: #fee440;
+            --neon-purple: #9d4edd;
+            --neon-green: #06ffa5;
+            --text-main: #f8f9fa;
+            --text-muted: #8b949e;
+            --code-bg: #161b22;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+        }
+
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 40px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(50px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-slide);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            z-index: 2;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        .slide-1::before { background: var(--neon-magenta); top: -150px; left: -150px; }
+        .slide-2::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+        .slide-3::before { background: var(--neon-yellow); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-4::before { background: var(--neon-purple); bottom: -150px; left: -150px; }
+        .slide-5::before { background: var(--neon-green); top: -150px; right: -150px; }
+        .slide-6::before { background: var(--neon-magenta); bottom: -150px; right: -150px; }
+        .slide-7::before { background: var(--neon-yellow); top: -150px; left: -150px; }
+        .slide-8::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+        .slide-9::before { background: var(--neon-purple); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-10::before { background: var(--neon-green); bottom: -150px; left: -150px; }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(13, 17, 23, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 20px rgba(0, 245, 212, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-track { background: transparent; }
+        .content::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 10px; }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: var(--neon-yellow);
+            border-left: 5px solid var(--neon-magenta);
+            padding-left: 18px;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            color: var(--neon-cyan);
+            margin: 15px 0 10px 0;
+        }
+
+        p, li {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: var(--text-main);
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 10px 0;
+        }
+
+        li::before {
+            content: "▹";
+            color: var(--neon-magenta);
+            font-weight: bold;
+            display: inline-block; 
+            width: 1.5em;
+        }
+
+        .highlight { color: var(--neon-cyan); font-weight: bold; }
+        .highlight-yellow { color: var(--neon-yellow); font-weight: bold; }
+        .highlight-magenta { color: var(--neon-magenta); font-weight: bold; }
+        .highlight-purple { color: var(--neon-purple); font-weight: bold; }
+        .highlight-green { color: var(--neon-green); font-weight: bold; }
+
+        pre {
+            background: var(--code-bg);
+            border-radius: 10px;
+            padding: 15px;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin: 12px 0;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            line-height: 1.4;
+        }
+
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .function { color: #8be9fd; }
+        .comment { color: #6272a4; font-style: italic; }
+        .number { color: #bd93f9; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin: 15px 0;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            padding: 18px;
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--neon-cyan);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .badge-cyan { background: rgba(0, 245, 212, 0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
+        .badge-magenta { background: rgba(241, 91, 181, 0.15); color: var(--neon-magenta); border: 1px solid var(--neon-magenta); }
+        .badge-yellow { background: rgba(254, 228, 64, 0.15); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); }
+        .badge-purple { background: rgba(157, 78, 221, 0.15); color: var(--neon-purple); border: 1px solid var(--neon-purple); }
+        .badge-green { background: rgba(6, 255, 165, 0.15); color: var(--neon-green); border: 1px solid var(--neon-green); }
+
+        .info-box {
+            background: rgba(0, 245, 212, 0.08);
+            border-left: 4px solid var(--neon-cyan);
+            padding: 12px 18px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .warning-box {
+            background: rgba(241, 91, 181, 0.08);
+            border-left: 4px solid var(--neon-magenta);
+            padding: 12px 18px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 1.3rem;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        .nav-controls {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+            background: rgba(13, 17, 23, 0.95);
+            padding: 10px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: var(--neon-cyan);
+            color: var(--bg-dark);
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
+        .nav-btn:disabled {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .slide-counter {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--text-main);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            transition: width 0.4s ease;
+            z-index: 100;
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .similar-block {
+            background: rgba(6, 255, 165, 0.08);
+            border: 2px solid var(--neon-green);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .different-block {
+            background: rgba(241, 91, 181, 0.08);
+            border: 2px solid var(--neon-magenta);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px;
+            color: var(--neon-yellow);
+            border-bottom: 2px solid var(--neon-cyan);
+            font-size: 1rem;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.5rem; }
+            .content { padding: 20px; }
+            p, li { font-size: 1rem; }
+            code { font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+  <!-- Кнопка возврата на главную -->
+<div style="position:fixed;top:12px;left:12px;z-index:99999;">
+  <a href="index.html" style="
+    display:inline-block;
+    padding:10px 18px;
+    background:#ffd866;
+    color:#1e1e2e;
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:bold;
+    font-family:sans-serif;
+    font-size:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    transition:background 0.2s;
+  " onmouseover="this.style.background='#fff'" 
+     onmouseout="this.style.background='#ffd866'">
+    ← На главную
+  </a>
+</div>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="presentation" id="presentation">
+        
+        <!-- Слайд 1: Титульный -->
+        <section class="slide slide-1 active">
+            <div class="content" style="text-align: center;">
+                <h1>Разбор функций приложения</h1>
+                <p class="subtitle">Как устроена логика «Умных заметок»</p>
+                <div style="margin-top: 30px;">
+                    <div class="grid-2">
+                        <div class="card" style="border-color: var(--neon-cyan);">
+                            <span class="badge badge-cyan">7 функций</span>
+                            <p style="margin: 0;">Создание, удаление, сохранение, отображение заметок и работа с тегами</p>
+                        </div>
+                        <div class="card" style="border-color: var(--neon-magenta);">
+                            <span class="badge badge-magenta">Сравнение</span>
+                            <p style="margin: 0;">Что общего в функциях и чем они отличаются</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 30px; color: var(--text-muted); font-size: 1rem;">
+                    Используйте стрелки ← → или кнопки внизу для навигации
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 2: add_note() -->
+        <section class="slide slide-2">
+            <div class="content">
+                <h2>📝 Функция add_note() — создание заметки</h2>
+                
+                <pre><code><span class="keyword">def</span> <span class="function">add_note</span>():
+    note_name, ok = QInputDialog.<span class="function">getText</span>(notes_win, <span class="string">"Добавить заметку"</span>, <span class="string">"Название: "</span>)
+    <span class="keyword">if</span> ok <span class="keyword">and</span> note_name != <span class="string">""</span>:
+        notes[note_name] = {<span class="string">"текст"</span> : <span class="string">""</span>, <span class="string">"теги"</span> : []}
+        list_notes.<span class="function">addItem</span>(note_name)
+        list_tags.<span class="function">addItems</span>(notes[note_name][<span class="string">"теги"</span>])
+        <span class="function">print</span>(notes)</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Шаг 1</span>
+                        <p style="margin: 0;">Открывает диалоговое окно для ввода названия заметки</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Шаг 2</span>
+                        <p style="margin: 0;">Проверяет, что пользователь не отменил ввод и название не пустое</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Шаг 3</span>
+                        <p style="margin: 0;">Создаёт новую запись в словаре <code>notes</code> с пустым текстом и тегами</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">Шаг 4</span>
+                        <p style="margin: 0;">Добавляет название в список заметок и очищает список тегов</p>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Особенность:</span> Эта функция <b>не сохраняет</b> изменения в JSON файл сразу — сохранение произойдёт при вызове <code>save_note()</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 3: show_note() -->
+        <section class="slide slide-3">
+            <div class="content">
+                <h2>👁️ Функция show_note() — отображение заметки</h2>
+                
+                <pre><code><span class="keyword">def</span> <span class="function">show_note</span>():
+    key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+    <span class="function">print</span>(key)
+    field_text.<span class="function">setText</span>(notes[key][<span class="string">"текст"</span>])
+    list_tags.<span class="function">clear</span>()
+    list_tags.<span class="function">addItems</span>(notes[key][<span class="string">"теги"</span>])</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Шаг 1</span>
+                        <p style="margin: 0;">Получает название выбранной заметки из списка</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Шаг 2</span>
+                        <p style="margin: 0;">Отображает текст заметки в поле <code>QTextEdit</code></p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Шаг 3</span>
+                        <p style="margin: 0;">Очищает список тегов от предыдущих значений</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">Шаг 4</span>
+                        <p style="margin: 0;">Заполняет список тегов текущей заметки</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Особенность:</span> Это единственная функция, которая <b>только читает</b> данные и <b>не изменяет</b> словарь <code>notes</code> и не записывает в файл</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 4: save_note() -->
+        <section class="slide slide-4">
+            <div class="content">
+                <h2>💾 Функция save_note() — сохранение заметки</h2>
+                
+                <pre><code><span class="keyword">def</span> <span class="function">save_note</span>():
+    <span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        notes[key][<span class="string">"текст"</span>] = field_text.<span class="function">toPlainText</span>()
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes_data.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            json.<span class="function">dump</span>(notes, file, sort_keys=<span class="keyword">True</span>, ensure_ascii=<span class="keyword">False</span>)
+        <span class="function">print</span>(notes)
+    <span class="keyword">else</span>:
+        <span class="function">print</span>(<span class="string">"Заметка для сохранения не выбрана!"</span>)</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Шаг 1</span>
+                        <p style="margin: 0;">Проверяет, выбрана ли заметка в списке</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Шаг 2</span>
+                        <p style="margin: 0;">Получает название выбранной заметки</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Шаг 3</span>
+                        <p style="margin: 0;">Обновляет текст заметки в словаре <code>notes</code> из поля ввода</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">Шаг 4</span>
+                        <p style="margin: 0;">Записывает весь словарь <code>notes</code> в JSON файл</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Особенность:</span> Сохраняет <b>только текст</b> заметки, теги не изменяет</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 5: del_note() -->
+        <section class="slide slide-5">
+            <div class="content">
+                <h2>🗑️ Функция del_note() — удаление заметки</h2>
+                
+                <pre><code><span class="keyword">def</span> <span class="function">del_note</span>():
+    <span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        <span class="keyword">del</span> notes[key]
+        list_notes.<span class="function">clear</span>()
+        list_tags.<span class="function">clear</span>()
+        field_text.<span class="function">clear</span>()
+        list_notes.<span class="function">addItems</span>(notes)
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes_data.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            json.<span class="function">dump</span>(notes, file, sort_keys=<span class="keyword">True</span>, ensure_ascii=<span class="keyword">False</span>)
+        <span class="function">print</span>(notes)
+    <span class="keyword">else</span>:
+        <span class="function">print</span>(<span class="string">"Заметка для удаления не выбрана!"</span>)</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Шаг 1</span>
+                        <p style="margin: 0;">Проверяет, выбрана ли заметка</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Шаг 2</span>
+                        <p style="margin: 0;">Удаляет заметку из словаря <code>notes</code></p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Шаг 3</span>
+                        <p style="margin: 0;">Очищает все виджеты (список заметок, теги, текст)</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">Шаг 4</span>
+                        <p style="margin: 0;">Перезаполняет список заметок и сохраняет в файл</p>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Особенность:</span> Полностью очищает интерфейс и перестраивает список заметок с нуля</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 6: add_tag() -->
+        <section class="slide slide-6">
+            <div class="content">
+                <h2>🏷️ Функция add_tag() — добавление тега</h2>
+                
+                <pre><code><span class="keyword">def</span> <span class="function">add_tag</span>():
+    <span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        tag = field_tag.<span class="function">text</span>()
+        <span class="keyword">if</span> <span class="keyword">not</span> tag <span class="keyword">in</span> notes[key][<span class="string">"теги"</span>]:
+            notes[key][<span class="string">"теги"</span>].<span class="function">append</span>(tag)
+            list_tags.<span class="function">addItem</span>(tag)
+            field_tag.<span class="function">clear</span>()
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes_data.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            json.<span class="function">dump</span>(notes, file, sort_keys=<span class="keyword">True</span>, ensure_ascii=<span class="keyword">False</span>)
+        <span class="function">print</span>(notes)
+    <span class="keyword">else</span>:
+        <span class="function">print</span>(<span class="string">"Заметка для добавления тега не выбрана!"</span>)</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Шаг 1</span>
+                        <p style="margin: 0;">Проверяет, выбрана ли заметка</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Шаг 2</span>
+                        <p style="margin: 0;">Получает название заметки и текст тега из поля ввода</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Шаг 3</span>
+                        <p style="margin: 0;">Проверяет, нет ли уже такого тега (защита от дубликатов)</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">Шаг 4</span>
+                        <p style="margin: 0;">Добавляет тег в словарь и в список, очищает поле ввода</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-green);">
+                        <span class="badge badge-green">Шаг 5</span>
+                        <p style="margin: 0;">Сохраняет изменения в JSON файл</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Особенность:</span> Проверяет <b>уникальность тега</b> перед добавлением</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 7: del_tag() -->
+        <section class="slide slide-7">
+            <div class="content">
+                <h2>❌ Функция del_tag() — удаление тега</h2>
+                
+                <pre><code><span class="keyword">def</span> <span class="function">del_tag</span>():
+    <span class="keyword">if</span> list_tags.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        tag = list_tags.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        notes[key][<span class="string">"теги"</span>].<span class="function">remove</span>(tag)
+        list_tags.<span class="function">clear</span>()
+        list_tags.<span class="function">addItems</span>(notes[key][<span class="string">"теги"</span>])
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes_data.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            json.<span class="function">dump</span>(notes, file, sort_keys=<span class="keyword">True</span>, ensure_ascii=<span class="keyword">False</span>)
+    <span class="keyword">else</span>:
+        <span class="function">print</span>(<span class="string">"Тег для удаления не выбран!"</span>)</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Шаг 1</span>
+                        <p style="margin: 0;">Проверяет, выбран ли <b>тег</b> в списке тегов (не заметок!)</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Шаг 2</span>
+                        <p style="margin: 0;">Получает название заметки и текст выбранного тега</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Шаг 3</span>
+                        <p style="margin: 0;">Удаляет тег из списка тегов заметки в словаре</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-purple);">
+                        <span class="badge badge-purple">Шаг 4</span>
+                        <p style="margin: 0;">Перестраивает список тегов и сохраняет в файл</p>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Особенность:</span> Работает с <b>двумя списками</b> — <code>list_notes</code> и <code>list_tags</code>, проверяет выбор в <code>list_tags</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 8: search_tag() -->
+        <section class="slide slide-8">
+            <div class="content">
+                <h2>🔍 Функция search_tag() — поиск по тегу</h2>
+                
+                <pre><code><span class="keyword">def</span> <span class="function">search_tag</span>():
+    tag = field_tag.<span class="function">text</span>()
+    <span class="keyword">if</span> button_tag_search.<span class="function">text</span>() == <span class="string">"Искать заметки по тегу"</span> <span class="keyword">and</span> tag:
+        notes_filtered = {}
+        <span class="keyword">for</span> note <span class="keyword">in</span> notes:
+            <span class="keyword">if</span> tag <span class="keyword">in</span> notes[note][<span class="string">"теги"</span>]: 
+                notes_filtered[note] = notes[note]
+        button_tag_search.<span class="function">setText</span>(<span class="string">"Сбросить поиск"</span>)
+        list_notes.<span class="function">clear</span>()
+        list_tags.<span class="function">clear</span>()
+        list_notes.<span class="function">addItems</span>(notes_filtered)
+    <span class="keyword">elif</span> button_tag_search.<span class="function">text</span>() == <span class="string">"Сбросить поиск"</span>:
+        field_tag.<span class="function">clear</span>()
+        list_notes.<span class="function">clear</span>()
+        list_tags.<span class="function">clear</span>()
+        list_notes.<span class="function">addItems</span>(notes)
+        button_tag_search.<span class="function">setText</span>(<span class="string">"Искать заметки по тегу"</span>)</code></pre>
+
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Режим 1</span>
+                        <h3 style="margin-top: 0;">Поиск</h3>
+                        <p style="margin: 0;">Создаёт новый словарь <code>notes_filtered</code> с заметками, у которых есть искомый тег</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow);">
+                        <span class="badge badge-yellow">Режим 2</span>
+                        <h3 style="margin-top: 0;">Сброс</h3>
+                        <p style="margin: 0;">Восстанавливает полный список всех заметок</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Особенность:</span> Использует <b>переключатель</b> — меняет текст кнопки для переключения между режимами поиска и сброса</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 9: Сравнение - одинаковые блоки -->
+        <section class="slide slide-9">
+            <div class="content">
+                <h2>✅ Что общего в функциях</h2>
+                
+                <div class="similar-block">
+                    <h3 style="color: var(--neon-green); margin-top: 0;">1. Проверка выбора заметки</h3>
+                    <pre><code><span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+    key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()</code></pre>
+                    <p style="margin: 8px 0 0 0;">Есть в: <span class="highlight-green">save_note(), del_note(), add_tag()</span></p>
+                </div>
+
+                <div class="similar-block">
+                    <h3 style="color: var(--neon-green); margin-top: 0;">2. Запись в JSON файл</h3>
+                    <pre><code><span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes_data.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+    json.<span class="function">dump</span>(notes, file, sort_keys=<span class="keyword">True</span>, ensure_ascii=<span class="keyword">False</span>)</code></pre>
+                    <p style="margin: 8px 0 0 0;">Есть в: <span class="highlight-green">save_note(), del_note(), add_tag(), del_tag()</span></p>
+                </div>
+
+                <div class="similar-block">
+                    <h3 style="color: var(--neon-green); margin-top: 0;">3. Очистка и перестроение списков</h3>
+                    <pre><code>list_tags.<span class="function">clear</span>()
+list_tags.<span class="function">addItems</span>(...)</code></pre>
+                    <p style="margin: 8px 0 0 0;">Есть в: <span class="highlight-green">show_note(), del_note(), del_tag(), search_tag()</span></p>
+                </div>
+
+                <div class="similar-block">
+                    <h3 style="color: var(--neon-green); margin-top: 0;">4. Получение ключа (названия заметки)</h3>
+                    <pre><code>key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()</code></pre>
+                    <p style="margin: 8px 0 0 0;">Есть в: <span class="highlight-green">show_note(), save_note(), del_note(), add_tag(), del_tag()</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 10: Сравнение - различия -->
+        <section class="slide slide-10">
+            <div class="content">
+                <h2>❌ Чем функции отличаются</h2>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Функция</th>
+                            <th>Уникальная особенность</th>
+                            <th>Что изменяет</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code class="highlight">add_note()</code></td>
+                            <td>Использует <code>QInputDialog</code>, не проверяет выбор</td>
+                            <td>Добавляет новую запись в <code>notes</code></td>
+                        </tr>
+                        <tr>
+                            <td><code class="highlight">show_note()</code></td>
+                            <td>Только читает данные, не записывает в файл</td>
+                            <td>Ничего не изменяет в <code>notes</code></td>
+                        </tr>
+                        <tr>
+                            <td><code class="highlight">save_note()</code></td>
+                            <td>Обновляет только текст заметки</td>
+                            <td><code>notes[key]["текст"]</code></td>
+                        </tr>
+                        <tr>
+                            <td><code class="highlight">del_note()</code></td>
+                            <td>Полностью очищает все виджеты</td>
+                            <td>Удаляет запись из <code>notes</code></td>
+                        </tr>
+                        <tr>
+                            <td><code class="highlight">add_tag()</code></td>
+                            <td>Проверяет уникальность тега</td>
+                            <td><code>notes[key]["теги"]</code></td>
+                        </tr>
+                        <tr>
+                            <td><code class="highlight">del_tag()</code></td>
+                            <td>Работает с <code>list_tags</code>, а не <code>list_notes</code></td>
+                            <td><code>notes[key]["теги"]</code></td>
+                        </tr>
+                        <tr>
+                            <td><code class="highlight">search_tag()</code></td>
+                            <td>Создаёт временный словарь <code>notes_filtered</code>, переключатель режимов</td>
+                            <td>Временно фильтрует список заметок</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="different-block">
+                    <p style="margin: 0;"><span class="highlight-magenta">Главное различие:</span> Функции работают с <b>разными данными</b> (текст, теги, список заметок) и <b>разными виджетами</b> (<code>list_notes</code>, <code>list_tags</code>, <code>field_text</code>)</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Панель навигации -->
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">&#10094;</button>
+        <span class="slide-counter" id="counter">1 / 10</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">&#10095;</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const counter = document.getElementById('counter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        function updatePresentation() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                }
+            });
+
+            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+            
+            const progress = ((currentSlide + 1) / totalSlides) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+        }
+
+        function changeSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+            updatePresentation();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                changeSlide(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                changeSlide(-1);
+            }
+        });
+
+        updatePresentation();
+    </script>
+</body>
+</html>
