@@ -3,172 +3,245 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📚 Умные заметки: JSON и TXT</title>
+  <title> Умные заметки: JSON и TXT</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    html, body {
+      height: 100%;
+      overflow: hidden;
       font-family: 'Segoe UI', Tahoma, sans-serif;
       background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
-      min-height: 100vh;
       color: #eee;
-      padding: 30px 20px;
     }
-    .container { max-width: 900px; margin: 0 auto; }
-    header {
-      text-align: center;
-      margin-bottom: 40px;
-      padding: 30px;
-      background: #1e1e2e;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    body {
+      padding: 15px;
+      display: flex;
+      gap: 15px;
     }
-    header h1 {
-      font-size: 2.2em;
-      color: #ffd866;
-      margin-bottom: 10px;
-    }
-    header p {
-      font-size: 1.1em;
-      color: #8be9fd;
-    }
-    .section-title {
-      color: #ff79c6;
-      font-size: 1.5em;
-      margin: 30px 0 15px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #44475a;
-    }
-    .card {
+    
+    /* ЛЕВАЯ ПАНЕЛЬ */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
       background: #1e1e2e;
       border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 15px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border: 1px solid #44475a;
+    }
+    .sidebar h1 {
+      font-size: 1.7em;
+      color: #ffd866;
+      margin-bottom: 14px;
+      line-height: 1.2;
+    }
+    .sidebar p {
+      font-size: 1em;
+      color: #8be9fd;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    .sidebar .legend {
+      font-size: 0.9em;
+      color: #ccc;
+      border-top: 1px solid #44475a;
+      padding-top: 14px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.json { background: #8be9fd; }
+    .dot.func { background: #ff79c6; }
+    .dot.txt  { background: #7fa3b8; } /* Чуть ярче */
+
+    /* ПРАВАЯ ПАНЕЛЬ */
+    .content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 24px;
+    }
+    
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .section-label {
+      color: #ffd866;
+      font-size: 1.05em;
+      font-weight: bold;
+      padding: 6px 0;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #44475a;
+      text-shadow: 0 0 8px rgba(255, 216, 102, 0.25);
+    }
+    
+    /* Все карточки одинаковой высоты */
+    .card {
+      background: #1e1e2e;
+      border-radius: 10px;
+      padding: 14px 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 15px;
+      gap: 14px;
       transition: transform 0.2s, box-shadow 0.2s;
       border-left: 4px solid #50fa7b;
+      height: 75px;
     }
     .card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 20px rgba(139, 233, 253, 0.2);
+      transform: translateX(4px);
+      box-shadow: 0 4px 12px rgba(139, 233, 253, 0.2);
     }
     .card.json { border-left-color: #8be9fd; }
     .card.func { border-left-color: #ff79c6; }
-    .card.txt  { border-left-color: #ffb86c; }
-    .card-info { flex: 1; min-width: 200px; }
+    .card.txt  { border-left-color: #7fa3b8; } /* Чуть ярче */
+    
+    .card-info { flex: 1; min-width: 0; }
     .card-info h3 {
-      color: #50fa7b;
-      margin-bottom: 8px;
-      font-size: 1.15em;
+      font-size: 1.1em;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .card.json .card-info h3 { color: #8be9fd; }
     .card.func .card-info h3 { color: #ff79c6; }
-    .card.txt  .card-info h3 { color: #ffb86c; }
-    .card-info p { color: #ccc; font-size: 0.95em; line-height: 1.5; }
+    .card.txt  .card-info h3 { color: #7fa3b8; } /* Чуть ярче */
+    
+    .card-info p {
+      color: #bbb;
+      font-size: 0.92em;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
     .card-btn {
-      padding: 12px 25px;
+      padding: 10px 18px;
       background: linear-gradient(90deg, #50fa7b, #8be9fd);
       color: #1e1e2e;
       text-decoration: none;
       border-radius: 8px;
       font-weight: bold;
-      font-size: 1em;
+      font-size: 0.95em;
       transition: opacity 0.2s;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     .card-btn:hover { opacity: 0.85; }
-    footer {
-      text-align: center;
-      margin-top: 40px;
-      color: #6272a4;
-      font-size: 0.9em;
-    }
-    @media (max-width: 600px) {
-      header h1 { font-size: 1.6em; }
-      .card { flex-direction: column; align-items: stretch; }
-      .card-btn { text-align: center; }
+
+    @media (max-width: 768px), (max-height: 650px) {
+      html, body { height: auto; overflow-y: auto; }
+      body { flex-direction: column; padding: 15px; }
+      .sidebar { width: 100%; margin-bottom: 15px; }
+      .content { padding-bottom: 30px; }
+      .card { height: auto; min-height: 75px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>📚 Умные заметки</h1>
-      <p>Презентации по работе с JSON и TXT файлами в Python</p>
-    </header>
 
-    <!-- РАЗДЕЛ 1: JSON -->
-    <h2 class="section-title">🟦 Часть 1. Работа с JSON</h2>
+  <!-- ЛЕВАЯ ПАНЕЛЬ -->
+  <aside class="sidebar">
+    <h1>📚 Умные заметки</h1>
+    <p>Презентации по работе с JSON и TXT файлами в Python. Приложение на PyQt5.</p>
+    <div class="legend">
+      <div class="legend-item"><span class="dot json"></span> Часть 1 — JSON</div>
+      <div class="legend-item"><span class="dot func"></span> Часть 2 — Приложение</div>
+      <div class="legend-item"><span class="dot txt"></span> Часть 3 — TXT</div>
+    </div>
+  </aside>
 
-    <div class="card json">
-      <div class="card-info">
-        <h3>1. Введение в JSON</h3>
-        <p>Что такое JSON, структура файла, как он связан со словарями Python. Проблема хранения сложных данных и её решение.</p>
+  <!-- ПРАВАЯ ПАНЕЛЬ -->
+  <main class="content">
+
+    <div class="section">
+      <div class="section-label">🟦 Часть 1. Работа с JSON</div>
+
+      <div class="card json">
+        <div class="card-info">
+          <h3>1. Введение в JSON</h3>
+          <p>Структура файла, связь со словарями Python, проблема хранения сложных данных</p>
+        </div>
+        <a href="Q1json_prez.html" class="card-btn" target="_blank">▶ Открыть</a>
       </div>
-      <a href="Q1json_prez.html" class="card-btn" target="_blank">▶ Открыть</a>
+
+      <div class="card json">
+        <div class="card-info">
+          <h3>2. Загрузка и выгрузка (load / dump)</h3>
+          <p>json.load() и json.dump(), параметры ensure_ascii и sort_keys</p>
+        </div>
+        <a href="Q2losd_dump.html" class="card-btn" target="_blank">▶ Открыть</a>
+      </div>
     </div>
 
-    <div class="card json">
-      <div class="card-info">
-        <h3>2. Загрузка и выгрузка (load / dump)</h3>
-        <p>Итоговый слайд: как читать JSON через json.load() и записывать через json.dump(). Параметры ensure_ascii и sort_keys.</p>
+    <div class="section">
+      <div class="section-label">🟪 Часть 2. Приложение «Умные заметки»</div>
+
+      <div class="card func">
+        <div class="card-info">
+          <h3>3. Виджеты PyQt5: теория и методы</h3>
+          <p>QListWidget, QTextEdit, QLineEdit, QPushButton, QInputDialog, QLabel</p>
+        </div>
+        <a href="Q41func_widg.html" class="card-btn" target="_blank">▶ Открыть</a>
       </div>
-      <a href="Q2losd_dump.html" class="card-btn" target="_blank">▶ Открыть</a>
+
+      <div class="card func">
+        <div class="card-info">
+          <h3>4. Разбор функций приложения</h3>
+          <p>7 функций: add_note, show_note, save_note, del_note, работа с тегами</p>
+        </div>
+        <a href="Q3func_app.html" class="card-btn" target="_blank">▶ Открыть</a>
+      </div>
+
+      <div class="card func">
+        <div class="card-info">
+          <h3>5. Отображение и выбор заметок</h3>
+          <p>Как программа показывает список и обрабатывает клик пользователя</p>
+        </div>
+        <a href="Q4show_notes4.html" class="card-btn" target="_blank">▶ Открыть</a>
+      </div>
     </div>
 
-    <!-- РАЗДЕЛ 2: ФУНКЦИИ ПРИЛОЖЕНИЯ -->
-    <h2 class="section-title">🟪 Часть 2. Приложение «Умные заметки»</h2>
+    <div class="section">
+      <div class="section-label">🟧 Часть 3. Переход на TXT</div>
 
-    <div class="card func">
-      <div class="card-info">
-        <h3>3. Виджеты PyQt5: теория и методы</h3>
-        <p>Подробный разбор всех виджетов приложения: QListWidget, QTextEdit, QLineEdit, QPushButton, QInputDialog, QLabel, QWidget. Методы addItem(), addItems(), clear(), selectedItems(), setText(), toPlainText().</p>
+      <div class="card txt">
+        <div class="card-info">
+          <h3>6. Хранение заметок в TXT файлах</h3>
+          <p>Принцип «1 заметка = 1 файл», чтение, запись, удаление, сравнение с JSON</p>
+        </div>
+        <a href="Q5txt.html" class="card-btn" target="_blank">▶ Открыть</a>
       </div>
-      <a href="Q41func_widg.html" class="card-btn" target="_blank">▶ Открыть</a>
+
+      <div class="card txt">
+        <div class="card-info">
+          <h3>7. Переход с JSON на TXT: как меняется код</h3>
+          <p>Постраничное сравнение версий, таблица итоговых различий</p>
+        </div>
+        <a href="Q6txt_json.html" class="card-btn" target="_blank">▶ Открыть</a>
+      </div>
     </div>
 
-    <div class="card func">
-      <div class="card-info">
-        <h3>4. Разбор функций приложения</h3>
-        <p>7 функций: add_note, show_note, save_note, del_note, add_tag, del_tag, search_tag. Что общего и чем отличаются.</p>
-      </div>
-      <a href="Q3func_app.html" class="card-btn" target="_blank">▶ Открыть</a>
-    </div>
+  </main>
 
-    <div class="card func">
-      <div class="card-info">
-        <h3>5. Отображение и выбор заметок</h3>
-        <p>Как программа показывает список заметок и обрабатывает клик пользователя. Методы selectedItems(), setText(), clear(), addItems().</p>
-      </div>
-      <a href="Q4show_notes4.html" class="card-btn" target="_blank">▶ Открыть</a>
-    </div>
-
-    <!-- РАЗДЕЛ 3: TXT -->
-    <h2 class="section-title">🟧 Часть 3. Переход на TXT</h2>
-
-    <div class="card txt">
-      <div class="card-info">
-        <h3>6. Хранение заметок в TXT файлах</h3>
-        <p>Принцип «1 заметка = 1 файл». Чтение, запись, удаление. Сравнение JSON и TXT подходов. Почему удаление в TXT сложнее.</p>
-      </div>
-      <a href="Q5txt.html" class="card-btn" target="_blank">▶ Открыть</a>
-    </div>
-
-    <div class="card txt">
-      <div class="card-info">
-        <h3>7. Переход с JSON на TXT: как меняется код</h3>
-        <p>Постраничное сравнение JSON и TXT версий: загрузка, add_note, show_note, save_note, del_note. Таблица итоговых различий.</p>
-      </div>
-      <a href="Q6txt_json.html" class="card-btn" target="_blank">▶ Открыть</a>
-    </div>
-
-    <footer>
-      <p>Материалы по теме «Умные заметки» на Python 🐍</p>
-    </footer>
-  </div>
 </body>
 </html>
 
