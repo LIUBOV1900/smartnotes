@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Хранение заметок в TXT файлах</title>
+    <style>
+        :root {
+            --bg-dark: #07090f;
+            --bg-slide: #0d1117;
+            --neon-cyan: #00f5d4;
+            --neon-magenta: #f15bb5;
+            --neon-yellow: #fee440;
+            --neon-purple: #9d4edd;
+            --neon-green: #06ffa5;
+            --text-main: #f8f9fa;
+            --text-muted: #8b949e;
+            --code-bg: #161b22;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-dark); color: var(--text-main); }
+
+        .presentation { width: 100vw; height: 100vh; position: relative; }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 30px 40px; opacity: 0; visibility: hidden; transform: translateX(50px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); background: var(--bg-slide);
+        }
+
+        .slide.active { opacity: 1; visibility: visible; transform: translateX(0); z-index: 2; }
+
+        .slide::before {
+            content: ''; position: absolute; width: 500px; height: 500px; border-radius: 50%;
+            filter: blur(150px); opacity: 0.12; z-index: 0;
+        }
+
+        .slide-1::before { background: var(--neon-magenta); top: -150px; left: -150px; }
+        .slide-2::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+        .slide-3::before { background: var(--neon-yellow); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-4::before { background: var(--neon-purple); bottom: -150px; left: -150px; }
+        .slide-5::before { background: var(--neon-green); top: -150px; right: -150px; }
+        .slide-6::before { background: var(--neon-magenta); bottom: -150px; right: -150px; }
+        .slide-7::before { background: var(--neon-cyan); top: -150px; left: -150px; }
+        .slide-8::before { background: var(--neon-yellow); bottom: -150px; left: -150px; }
+        .slide-9::before { background: var(--neon-purple); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-10::before { background: var(--neon-green); bottom: -150px; right: -150px; }
+        .slide-11::before { background: var(--neon-magenta); top: -150px; left: -150px; }
+        .slide-12::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+
+        .content {
+            position: relative; z-index: 1; max-width: 1200px; width: 100%;
+            background: rgba(13, 17, 23, 0.9); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 30px 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 20px rgba(0, 245, 212, 0.1);
+            border: 1px solid rgba(255,255,255,0.1); max-height: 92vh; overflow-y: auto;
+        }
+
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 10px; }
+
+        h1 {
+            font-size: 2.4rem; font-weight: 800; text-align: center; margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.9rem; margin-bottom: 22px; color: var(--neon-yellow);
+            border-left: 5px solid var(--neon-magenta); padding-left: 18px;
+        }
+
+        h3 { font-size: 1.25rem; color: var(--neon-cyan); margin: 15px 0 10px 0; }
+
+        p, li { font-size: 1.05rem; line-height: 1.5; color: var(--text-main); margin-bottom: 10px; }
+
+        ul { list-style: none; padding-left: 0; margin: 12px 0; }
+        li::before { content: "▹"; color: var(--neon-magenta); font-weight: bold; display: inline-block; width: 1.5em; }
+
+        .hl { color: var(--neon-cyan); font-weight: bold; }
+        .hl-y { color: var(--neon-yellow); font-weight: bold; }
+        .hl-m { color: var(--neon-magenta); font-weight: bold; }
+        .hl-p { color: var(--neon-purple); font-weight: bold; }
+        .hl-g { color: var(--neon-green); font-weight: bold; }
+
+        pre {
+            background: var(--code-bg); border-radius: 10px; padding: 15px;
+            overflow-x: auto; border: 1px solid rgba(255,255,255,0.1);
+            margin: 12px 0; box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        code { font-family: 'Consolas', monospace; font-size: 0.92rem; color: #e2e8f0; line-height: 1.45; }
+
+        .kw { color: #ff79c6; }
+        .str { color: #f1fa8c; }
+        .fn { color: #8be9fd; }
+        .cm { color: #6272a4; font-style: italic; }
+        .num { color: #bd93f9; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 15px 0; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 12px 0; }
+
+        .card {
+            background: rgba(255,255,255,0.03); border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 14px; padding: 18px; transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .card:hover { transform: translateY(-3px); border-color: var(--neon-cyan); }
+
+        .badge {
+            display: inline-block; padding: 4px 12px; border-radius: 15px;
+            font-size: 0.85rem; font-weight: bold; margin-bottom: 10px;
+        }
+
+        .badge-c { background: rgba(0,245,212,0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
+        .badge-m { background: rgba(241,91,181,0.15); color: var(--neon-magenta); border: 1px solid var(--neon-magenta); }
+        .badge-y { background: rgba(254,228,64,0.15); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); }
+        .badge-p { background: rgba(157,78,221,0.15); color: var(--neon-purple); border: 1px solid var(--neon-purple); }
+        .badge-g { background: rgba(6,255,165,0.15); color: var(--neon-green); border: 1px solid var(--neon-green); }
+
+        .info-box {
+            background: rgba(0,245,212,0.08); border-left: 4px solid var(--neon-cyan);
+            padding: 12px 18px; border-radius: 8px; margin: 12px 0;
+        }
+
+        .warn-box {
+            background: rgba(241,91,181,0.08); border-left: 4px solid var(--neon-magenta);
+            padding: 12px 18px; border-radius: 8px; margin: 12px 0;
+        }
+
+        .file-box {
+            background: var(--code-bg); border: 2px solid var(--neon-cyan);
+            border-radius: 10px; padding: 15px; margin: 10px 0;
+            font-family: 'Consolas', monospace; font-size: 0.95rem;
+        }
+
+        .file-name {
+            color: var(--neon-yellow); font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 10px;
+        }
+
+        .file-line { padding: 3px 0; color: var(--text-main); }
+        .file-line .ln { color: var(--text-muted); margin-right: 10px; user-select: none; }
+
+        .file-deleted {
+            border-color: var(--neon-magenta);
+            background: rgba(241, 91, 181, 0.05);
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        .file-renamed {
+            border-color: var(--neon-green);
+            background: rgba(6, 255, 165, 0.05);
+        }
+
+        .nav-controls {
+            position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 20px; z-index: 100;
+            background: rgba(13, 17, 23, 0.95); padding: 10px 25px; border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            background: transparent; border: 2px solid var(--neon-cyan); color: var(--neon-cyan);
+            width: 42px; height: 42px; border-radius: 50%; font-size: 1.3rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.3s;
+        }
+
+        .nav-btn:hover { background: var(--neon-cyan); color: var(--bg-dark); box-shadow: 0 0 15px var(--neon-cyan); }
+        .nav-btn:disabled { border-color: #444; color: #444; cursor: not-allowed; box-shadow: none; }
+
+        .slide-counter { font-size: 1rem; font-weight: bold; color: var(--text-main); min-width: 60px; text-align: center; }
+
+        .progress-bar {
+            position: fixed; top: 0; left: 0; height: 4px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            transition: width 0.4s ease; z-index: 100; box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .arrow-flow {
+            display: flex; align-items: center; justify-content: center;
+            gap: 15px; margin: 15px 0; flex-wrap: wrap;
+        }
+
+        .flow-box {
+            background: rgba(255,255,255,0.05); border: 2px solid var(--neon-cyan);
+            border-radius: 10px; padding: 10px 18px; font-weight: bold;
+            color: var(--neon-cyan); min-width: 120px; text-align: center;
+        }
+
+        .flow-arrow { color: var(--neon-yellow); font-size: 1.5rem; }
+
+        .files-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .mini-file {
+            background: var(--code-bg);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: var(--neon-cyan);
+            text-align: center;
+            min-width: 70px;
+        }
+
+        .mini-file.deleted {
+            border-color: var(--neon-magenta);
+            color: var(--neon-magenta);
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .mini-file.renamed {
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            animation: filePulse 0.6s ease;
+        }
+
+        @keyframes filePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); background: rgba(6, 255, 165, 0.2); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.5rem; }
+            .content { padding: 25px 20px; }
+        }
+    </style>
+</head>
+<body>
+  <!-- Кнопка возврата на главную -->
+<div style="position:fixed;top:12px;left:12px;z-index:99999;">
+  <a href="index.html" style="
+    display:inline-block;
+    padding:10px 18px;
+    background:#ffd866;
+    color:#1e1e2e;
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:bold;
+    font-family:sans-serif;
+    font-size:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    transition:background 0.2s;
+  " onmouseover="this.style.background='#fff'" 
+     onmouseout="this.style.background='#ffd866'">
+    ← На главную
+  </a>
+</div>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="presentation" id="presentation">
+        
+        <!-- Слайд 1: Титульный -->
+        <section class="slide slide-1 active">
+            <div class="content" style="text-align: center;">
+                <h1>Хранение заметок в TXT файлах</h1>
+                <p style="font-size: 1.3rem; color: var(--text-muted); margin-bottom: 30px;">
+                    Переход от JSON к текстовым файлам: <br>структура, чтение и запись данных
+                </p>
+                <div class="grid-2" style="margin-top: 30px;">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-m">Было</span>
+                        <h3 style="color: var(--neon-magenta);">JSON файл</h3>
+                        <p style="margin: 0;">Один файл <code>notes_data.json</code><br>со всеми заметками</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-c">Стало</span>
+                        <h3 style="color: var(--neon-cyan);">TXT файлы</h3>
+                        <p style="margin: 0;">Принцип <b>«1 заметка = 1 файл»</b><br><code>0.txt, 1.txt, 2.txt...</code></p>
+                    </div>
+                </div>
+                <div style="margin-top: 30px; color: var(--text-muted); font-size: 1rem;">
+                    ← → для навигации
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 2: Новая структура хранения -->
+        <section class="slide slide-2">
+            <div class="content">
+                <h2>📁 Новая структура хранения</h2>
+                
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="hl">Главный принцип:</span> каждая заметка хранится в <b>отдельном TXT файле</b> с номером</p>
+                </div>
+
+                <div class="grid-3">
+                    <div class="file-box">
+                        <div class="file-name">📄 0.txt</div>
+                        <div class="file-line"><span class="ln">1</span>О планетах</div>
+                        <div class="file-line"><span class="ln">2</span>Что если вода на Марсе...</div>
+                        <div class="file-line"><span class="ln">3</span>Марс гипотезы</div>
+                    </div>
+                    <div class="file-box">
+                        <div class="file-name">📄 1.txt</div>
+                        <div class="file-line"><span class="ln">1</span>О чёрных дырах</div>
+                        <div class="file-line"><span class="ln">2</span>Сингулярность на...</div>
+                        <div class="file-line"><span class="ln">3</span>чёрные дыры факты</div>
+                    </div>
+                    <div class="file-box">
+                        <div class="file-name">📄 2.txt</div>
+                        <div class="file-line"><span class="ln">1</span>О галактиках</div>
+                        <div class="file-line"><span class="ln">2</span>Наша галактика...</div>
+                        <div class="file-line"><span class="ln">3</span>галактики факты</div>
+                    </div>
+                </div>
+
+                <h3>Структура одного файла:</h3>
+                <ul>
+                    <li><span class="hl-y">Строка 1</span> — название заметки</li>
+                    <li><span class="hl-y">Строка 2</span> — текст заметки</li>
+                    <li><span class="hl-y">Строка 3</span> — теги через пробел</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Слайд 3: Сравнение подходов -->
+        <section class="slide slide-3">
+            <div class="content">
+                <h2>⚖️ Сравнение подходов</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-m">JSON (один файл)</span>
+                        <pre><code>{
+  <span class="str">"О планетах"</span>: {
+    <span class="str">"текст"</span>: <span class="str">"Что если..."</span>,
+    <span class="str">"теги"</span>: [<span class="str">"Марс"</span>, <span class="str">"гипотезы"</span>]
+  }
+}</code></pre>
+                        <ul style="margin-top: 10px;">
+                            <li>Готовая структура</li>
+                            <li>Автоматический парсинг</li>
+                            <li>Нужна библиотека <code>json</code></li>
+                        </ul>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-c">TXT (много файлов)</span>
+                        <pre><code><span class="cm"># 0.txt</span>
+О планетах
+Что если...
+Марс гипотезы</code></pre>
+                        <ul style="margin-top: 10px;">
+                            <li>Простой текст</li>
+                            <li>Нужен ручной парсинг</li>
+                            <li>Можно открыть в блокноте</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="warn-box">
+                    <p style="margin: 0;"><span class="hl-m">Преимущество TXT:</span> заметки можно создавать и редактировать <b>без приложения</b> — на телефоне, в блокноте, просто скопировав файл в папку проекта</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 4: Чтение данных — алгоритм -->
+        <section class="slide slide-4">
+            <div class="content">
+                <h2>📥 Чтение данных: алгоритм</h2>
+                
+                <p>Нужно прочитать все файлы <code>0.txt, 1.txt, 2.txt...</code> пока они существуют</p>
+
+                <div class="arrow-flow">
+                    <div class="flow-box">num = 0</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box">Открыть num.txt</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box">Прочитать в note</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box">Добавить в notes</div>
+                </div>
+
+                <div class="arrow-flow">
+                    <div class="flow-arrow">↑</div>
+                    <div style="color: var(--neon-yellow);">Цикл while True</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box" style="border-color: var(--neon-magenta); color: var(--neon-magenta);">Файл не найден?</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box" style="border-color: var(--neon-green); color: var(--neon-green);">break</div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="hl">Ключевая идея:</span> используем <code>try/except IOError</code> — если файл не открывается, значит все заметки прочитаны, выходим из цикла</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 5: Чтение данных — код -->
+        <section class="slide slide-5">
+            <div class="content">
+                <h2>💻 Чтение данных: код</h2>
+                
+                <pre><code>notes = []
+num_name = <span class="num">0</span>
+
+<span class="kw">while</span> <span class="kw">True</span>:
+    filename = <span class="fn">str</span>(num_name) + <span class="str">".txt"</span>
+    <span class="kw">try</span>:
+        <span class="kw">with</span> <span class="fn">open</span>(filename, <span class="str">"r"</span>) <span class="kw">as</span> file:
+            note = []
+            <span class="kw">for</span> line <span class="kw">in</span> file:
+                line = line.<span class="fn">strip</span>()  <span class="cm"># убираем '\n'</span>
+                note.<span class="fn">append</span>(line)
+            
+            <span class="cm"># note[2] — строка с тегами, разделяем на список</span>
+            note[<span class="num">2</span>] = note[<span class="num">2</span>].<span class="fn">split</span>()
+            notes.<span class="fn">append</span>(note)
+        
+        num_name += <span class="num">1</span>
+    <span class="kw">except</span> <span class="fn">IOError</span>:
+        <span class="kw">break</span>  <span class="cm"># файла нет — все заметки прочитаны</span></code></pre>
+
+                <div class="warn-box">
+                    <p style="margin: 0;"><span class="hl-m">Важно:</span> после чтения <code>note</code> — это список <code>[название, текст, [теги]]</code>, а не словарь!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 6: Функция add_note() -->
+        <section class="slide slide-6">
+            <div class="content">
+                <h2>➕ Функция add_note() — создание заметки</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-m">JSON версия</span>
+                        <pre><code><span class="kw">def</span> <span class="fn">add_note</span>():
+    note_name, ok = ...
+    <span class="kw">if</span> ok <span class="kw">and</span> note_name:
+        notes[note_name] = {
+            <span class="str">"текст"</span>: <span class="str">""</span>,
+            <span class="str">"теги"</span>: []
+        }
+        list_notes.<span class="fn">addItem</span>(note_name)
+        <span class="cm"># Сохраняем весь JSON</span>
+        <span class="kw">with</span> <span class="fn">open</span>(<span class="str">"notes.json"</span>, <span class="str">"w"</span>) <span class="kw">as</span> f:
+            json.<span class="fn">dump</span>(notes, f)</code></pre>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-c">TXT версия</span>
+                        <pre><code><span class="kw">def</span> <span class="fn">add_note</span>():
+    note_name, ok = ...
+    <span class="kw">if</span> ok <span class="kw">and</span> note_name:
+        note = [note_name, <span class="str">''</span>, []]
+        notes.<span class="fn">append</span>(note)
+        list_notes.<span class="fn">addItem</span>(note_name)
+        
+        <span class="cm"># Записываем в НОВЫЙ файл</span>
+        filename = <span class="fn">str</span>(<span class="fn">len</span>(notes)-<span class="num">1</span>) + <span class="str">".txt"</span>
+        <span class="kw">with</span> <span class="fn">open</span>(filename, <span class="str">"w"</span>) <span class="kw">as</span> file:
+            file.<span class="fn">write</span>(note[<span class="num">0</span>] + <span class="str">'\n'</span>)</code></pre>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="hl">Изменение:</span> вместо обновления одного JSON файла создаём <b>новый TXT файл</b> с номером <code>len(notes)-1</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 7: Функция save_note() — алгоритм -->
+        <section class="slide slide-7">
+            <div class="content">
+                <h2>💾 Функция save_note() — сохранение заметки</h2>
+                
+                <p>Нужно найти заметку по имени и перезаписать её файл</p>
+
+                <div class="arrow-flow">
+                    <div class="flow-box">Получить key<br>(имя выбранной)</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box">Перебор notes<br>(с индексом i)</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box">note[0] == key?</div>
+                </div>
+
+                <div class="arrow-flow">
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-box" style="border-color: var(--neon-green); color: var(--neon-green);">Да: записать<br>в i.txt</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-box" style="border-color: var(--neon-magenta); color: var(--neon-magenta);">Нет: i += 1<br>пропустить</div>
+                </div>
+
+                <div class="warn-box">
+                    <p style="margin: 0;"><span class="hl-m">Особенность:</span> перебираем ВСЕ заметки, чтобы найти нужный номер файла. Номер файла = индекс заметки в списке</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 8: Функция save_note() — код -->
+        <section class="slide slide-8">
+            <div class="content">
+                <h2>💻 Функция save_note() — код</h2>
+                
+                <pre><code><span class="kw">def</span> <span class="fn">save_note</span>():
+    <span class="kw">if</span> list_notes.<span class="fn">selectedItems</span>():
+        key = list_notes.<span class="fn">selectedItems</span>()[<span class="num">0</span>].<span class="fn">text</span>()
+        i = <span class="num">0</span>
+        
+        <span class="kw">for</span> note <span class="kw">in</span> notes:
+            <span class="kw">if</span> note[<span class="num">0</span>] == key:
+                <span class="cm"># Нашли нужную заметку — обновляем текст</span>
+                note[<span class="num">1</span>] = field_text.<span class="fn">toPlainText</span>()
+                
+                <span class="cm"># Записываем в её файл</span>
+                filename = <span class="fn">str</span>(i) + <span class="str">".txt"</span>
+                <span class="kw">with</span> <span class="fn">open</span>(filename, <span class="str">"w"</span>) <span class="kw">as</span> file:
+                    file.<span class="fn">write</span>(note[<span class="num">0</span>] + <span class="str">'\n'</span>)   <span class="cm"># название</span>
+                    file.<span class="fn">write</span>(note[<span class="num">1</span>] + <span class="str">'\n'</span>)   <span class="cm"># текст</span>
+                    <span class="kw">for</span> tag <span class="kw">in</span> note[<span class="num">2</span>]:
+                        file.<span class="fn">write</span>(tag + <span class="str">' '</span>)   <span class="cm"># теги</span>
+                    file.<span class="fn">write</span>(<span class="str">'\n'</span>)
+            i += <span class="num">1</span></code></pre>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="hl">Ключевое отличие:</span> вместо <code>json.dump()</code> пишем файл <b>построчно вручную</b>. Перезаписываем только файл нужной заметки</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 9: Функция del_note() — алгоритм (НОВЫЙ) -->
+        <section class="slide slide-9">
+            <div class="content">
+                <h2>🗑️ Функция del_note() — удаление заметки</h2>
+                
+                <p>Удаление заметки в TXT-версии — <b>самая сложная операция</b>. Почему?</p>
+
+                <h3>Проблема: нумерация файлов</h3>
+                <p>Если удалить, например, <code>1.txt</code>, то <code>2.txt</code> должен стать новым <code>1.txt</code>, <code>3.txt</code> → <code>2.txt</code> и т.д.</p>
+
+                <h3 style="margin-top: 20px;">Пример: удаляем заметку "О чёрных дырах" (файл 1.txt)</h3>
+                
+                <div style="margin: 10px 0; color: var(--text-muted); font-size: 0.9rem;">До удаления:</div>
+                <div class="files-row">
+                    <div class="mini-file">0.txt<br><small>О планетах</small></div>
+                    <div class="mini-file deleted">1.txt<br><small>О чёрных дырах</small></div>
+                    <div class="mini-file">2.txt<br><small>О галактиках</small></div>
+                    <div class="mini-file">3.txt<br><small>О квантовой...</small></div>
+                </div>
+
+                <div style="margin: 10px 0; color: var(--text-muted); font-size: 0.9rem;">После удаления (файлы переименованы):</div>
+                <div class="files-row">
+                    <div class="mini-file">0.txt<br><small>О планетах</small></div>
+                    <div class="mini-file renamed">1.txt<br><small>О галактиках</small></div>
+                    <div class="mini-file renamed">2.txt<br><small>О квантовой...</small></div>
+                </div>
+
+                <div class="warn-box">
+                    <p style="margin: 0;"><span class="hl-m">Главная сложность:</span> нужно не просто удалить файл, но и <b>перезаписать все оставшиеся файлы с новыми номерами</b></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 10: Функция del_note() — сравнение с JSON (НОВЫЙ) -->
+        <section class="slide slide-10">
+            <div class="content">
+                <h2>⚖️ del_note(): JSON vs TXT</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-m">JSON версия</span>
+                        <pre><code><span class="kw">def</span> <span class="fn">del_note</span>():
+    <span class="kw">if</span> list_notes.<span class="fn">selectedItems</span>():
+        key = list_notes.<span class="fn">selectedItems</span>()[<span class="num">0</span>].<span class="fn">text</span>()
+        
+        <span class="cm"># Просто удаляем из словаря</span>
+        <span class="kw">del</span> notes[key]
+        
+        <span class="cm"># Обновляем виджеты</span>
+        list_notes.<span class="fn">clear</span>()
+        field_text.<span class="fn">clear</span>()
+        list_notes.<span class="fn">addItems</span>(notes)
+        
+        <span class="cm"># Один dump — и готово!</span>
+        <span class="kw">with</span> <span class="fn">open</span>(<span class="str">"notes.json"</span>, <span class="str">"w"</span>) <span class="kw">as</span> f:
+            json.<span class="fn">dump</span>(notes, f)</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.9rem; color: var(--neon-green);">✅ Просто: <code>del notes[key]</code> + один <code>dump</code></p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-c">TXT версия</span>
+                        <pre><code><span class="kw">def</span> <span class="fn">del_note</span>():
+    <span class="kw">if</span> list_notes.<span class="fn">selectedItems</span>():
+        key = list_notes.<span class="fn">selectedItems</span>()[<span class="num">0</span>].<span class="fn">text</span>()
+        
+        <span class="cm"># Ищем заметку по имени</span>
+        <span class="kw">for</span> note <span class="kw">in</span> notes:
+            <span class="kw">if</span> note[<span class="num">0</span>] == key:
+                notes.<span class="fn">remove</span>(note)
+                <span class="kw">break</span>
+        
+        <span class="cm"># Обновляем виджеты</span>
+        list_notes.<span class="fn">clear</span>()
+        field_text.<span class="fn">clear</span>()
+        list_notes.<span class="fn">addItems</span>(notes)
+        
+        <span class="cm"># ПЕРЕЗАПИСЫВАЕМ ВСЕ ФАЙЛЫ!</span>
+        <span class="kw">for</span> i, note <span class="kw">in</span> <span class="fn">enumerate</span>(notes):
+            <span class="kw">with</span> <span class="fn">open</span>(<span class="fn">str</span>(i)+<span class="str">".txt"</span>, <span class="str">"w"</span>) <span class="kw">as</span> f:
+                <span class="cm"># запись note[0], note[1], note[2]</span></code></pre>
+                        <p style="margin-top: 10px; font-size: 0.9rem; color: var(--neon-yellow);">⚠️ Сложно: перебор + перезапись ВСЕХ файлов</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="hl">Главное отличие:</span> в JSON — одно действие удаления. В TXT — нужно <b>перенумеровать все файлы</b>, чтобы не было "дырок" в нумерации</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 11: Функция del_note() — полный код (НОВЫЙ) -->
+        <section class="slide slide-11">
+            <div class="content">
+                <h2>💻 del_note(): полный код TXT версии</h2>
+                
+                <pre><code><span class="kw">def</span> <span class="fn">del_note</span>():
+    <span class="kw">if</span> list_notes.<span class="fn">selectedItems</span>():
+        key = list_notes.<span class="fn">selectedItems</span>()[<span class="num">0</span>].<span class="fn">text</span>()
+        
+        <span class="cm"># 1. Удаляем заметку из списка notes</span>
+        <span class="kw">for</span> note <span class="kw">in</span> notes:
+            <span class="kw">if</span> note[<span class="num">0</span>] == key:
+                notes.<span class="fn">remove</span>(note)
+                <span class="kw">break</span>
+        
+        <span class="cm"># 2. Очищаем виджеты интерфейса</span>
+        list_notes.<span class="fn">clear</span>()
+        field_text.<span class="fn">clear</span>()
+        list_notes.<span class="fn">addItems</span>(notes)  <span class="cm"># обновляем список</span>
+        
+        <span class="cm"># 3. ПЕРЕЗАПИСЫВАЕМ ВСЕ ФАЙЛЫ с новыми номерами!</span>
+        <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(notes)):
+            filename = <span class="fn">str</span>(i) + <span class="str">".txt"</span>
+            <span class="kw">with</span> <span class="fn">open</span>(filename, <span class="str">"w"</span>) <span class="kw">as</span> file:
+                file.<span class="fn">write</span>(notes[i][<span class="num">0</span>] + <span class="str">'\n'</span>)   <span class="cm"># название</span>
+                file.<span class="fn">write</span>(notes[i][<span class="num">1</span>] + <span class="str">'\n'</span>)   <span class="cm"># текст</span>
+                <span class="kw">for</span> tag <span class="kw">in</span> notes[i][<span class="num">2</span>]:
+                    file.<span class="fn">write</span>(tag + <span class="str">' '</span>)         <span class="cm"># теги</span>
+                file.<span class="fn">write</span>(<span class="str">'\n'</span>)</code></pre>
+
+                <div class="grid-3" style="margin-top: 15px;">
+                    <div class="card" style="border-color: var(--neon-cyan); padding: 12px;">
+                        <span class="badge badge-c" style="font-size: 0.75rem;">Шаг 1</span>
+                        <p style="margin: 0; font-size: 0.9rem;">Удаляем заметку из списка <code>notes</code></p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-yellow); padding: 12px;">
+                        <span class="badge badge-y" style="font-size: 0.75rem;">Шаг 2</span>
+                        <p style="margin: 0; font-size: 0.9rem;">Обновляем виджеты интерфейса</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-magenta); padding: 12px;">
+                        <span class="badge badge-m" style="font-size: 0.75rem;">Шаг 3</span>
+                        <p style="margin: 0; font-size: 0.9rem;">Перезаписываем ВСЕ файлы с новыми номерами</p>
+                    </div>
+                </div>
+
+                <div class="warn-box" style="margin-top: 15px;">
+                    <p style="margin: 0;"><span class="hl-m">Важно:</span> именно поэтому TXT-версия менее эффективна при удалении — нужно перезаписать все файлы, а не один</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 12: Сравнительная таблица -->
+        <section class="slide slide-12">
+            <div class="content">
+                <h2>📊 Итоговое сравнение функций</h2>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 12px; color: var(--neon-yellow); border-bottom: 2px solid var(--neon-cyan);">Функция</th>
+                            <th style="text-align: left; padding: 12px; color: var(--neon-magenta); border-bottom: 2px solid var(--neon-cyan);">JSON</th>
+                            <th style="text-align: left; padding: 12px; color: var(--neon-cyan); border-bottom: 2px solid var(--neon-cyan);">TXT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><b>Загрузка</b></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><code>json.load()</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><code>while True</code> + <code>try/except</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><b>Структура</b></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Словарь словарей</td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Список списков</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><b>add_note()</b></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Обновить словарь + dump</td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Создать новый файл</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><b>save_note()</b></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Один dump всего JSON</td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">Перебор + запись в i.txt</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><b>del_note()</b></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><code>del notes[key]</code> + dump</td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><b>Перезапись ВСЕХ файлов!</b></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><b>Доступ к тексту</b></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><code>notes[name]["текст"]</code></td>
+                            <td style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);"><code>note[1]</code></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;"><b>Доступ к тегам</b></td>
+                            <td style="padding: 12px;"><code>notes[name]["теги"]</code></td>
+                            <td style="padding: 12px;"><code>note[2]</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="warn-box" style="margin-top: 15px;">
+                    <p style="margin: 0;"><span class="hl-m">Вывод:</span> TXT-версия сложнее в реализации, особенно при удалении — но зато файлы можно редактировать вручную</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">&#10094;</button>
+        <span class="slide-counter" id="counter">1 / 12</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">&#10095;</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const counter = document.getElementById('counter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        function updatePresentation() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlide) slide.classList.add('active');
+            });
+
+            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+            progressBar.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+        }
+
+        function changeSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+            updatePresentation();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault(); changeSlide(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault(); changeSlide(-1);
+            }
+        });
+
+        updatePresentation();
+    </script>
+</body>
+</html>
