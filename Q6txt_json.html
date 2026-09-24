@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Переход с JSON на TXT: Как меняется программа</title>
+    <style>
+        :root {
+            --bg-dark: #07090f;
+            --bg-slide: #0d1117;
+            --neon-cyan: #00f5d4;
+            --neon-magenta: #f15bb5;
+            --neon-yellow: #fee440;
+            --neon-purple: #9d4edd;
+            --neon-green: #06ffa5;
+            --text-main: #f8f9fa;
+            --text-muted: #8b949e;
+            --code-bg: #161b22;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+        }
+
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 40px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(50px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-slide);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+            z-index: 2;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        .slide-1::before { background: var(--neon-magenta); top: -150px; left: -150px; }
+        .slide-2::before { background: var(--neon-cyan); bottom: -150px; right: -150px; }
+        .slide-3::before { background: var(--neon-yellow); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .slide-4::before { background: var(--neon-purple); bottom: -150px; left: -150px; }
+        .slide-5::before { background: var(--neon-green); top: -150px; right: -150px; }
+        .slide-6::before { background: var(--neon-magenta); bottom: -150px; right: -150px; }
+        .slide-7::before { background: var(--neon-cyan); top: -150px; left: -150px; }
+        .slide-8::before { background: var(--neon-yellow); bottom: -150px; left: -150px; }
+        .slide-9::before { background: var(--neon-purple); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(13, 17, 23, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 20px rgba(0, 245, 212, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-track { background: transparent; }
+        .content::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 10px; }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.9rem;
+            margin-bottom: 22px;
+            color: var(--neon-yellow);
+            border-left: 5px solid var(--neon-magenta);
+            padding-left: 18px;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            color: var(--neon-cyan);
+            margin: 15px 0 10px 0;
+        }
+
+        p, li {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: var(--text-main);
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 12px 0;
+        }
+
+        li::before {
+            content: "▹";
+            color: var(--neon-magenta);
+            font-weight: bold;
+            display: inline-block; 
+            width: 1.5em;
+        }
+
+        .highlight { color: var(--neon-cyan); font-weight: bold; }
+        .highlight-yellow { color: var(--neon-yellow); font-weight: bold; }
+        .highlight-magenta { color: var(--neon-magenta); font-weight: bold; }
+        .highlight-purple { color: var(--neon-purple); font-weight: bold; }
+        .highlight-green { color: var(--neon-green); font-weight: bold; }
+
+        pre {
+            background: var(--code-bg);
+            border-radius: 10px;
+            padding: 15px;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin: 12px 0;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            line-height: 1.45;
+        }
+
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .function { color: #8be9fd; }
+        .comment { color: #6272a4; font-style: italic; }
+        .number { color: #bd93f9; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin: 15px 0;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            padding: 18px;
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--neon-cyan);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .badge-cyan { background: rgba(0, 245, 212, 0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); }
+        .badge-magenta { background: rgba(241, 91, 181, 0.15); color: var(--neon-magenta); border: 1px solid var(--neon-magenta); }
+        .badge-yellow { background: rgba(254, 228, 64, 0.15); color: var(--neon-yellow); border: 1px solid var(--neon-yellow); }
+        .badge-purple { background: rgba(157, 78, 221, 0.15); color: var(--neon-purple); border: 1px solid var(--neon-purple); }
+        .badge-green { background: rgba(6, 255, 165, 0.15); color: var(--neon-green); border: 1px solid var(--neon-green); }
+
+        .info-box {
+            background: rgba(0, 245, 212, 0.08);
+            border-left: 4px solid var(--neon-cyan);
+            padding: 12px 18px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .warning-box {
+            background: rgba(241, 91, 181, 0.08);
+            border-left: 4px solid var(--neon-magenta);
+            padding: 12px 18px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .comparison-table th {
+            text-align: left;
+            padding: 12px;
+            color: var(--neon-yellow);
+            border-bottom: 2px solid var(--neon-cyan);
+            font-size: 1rem;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.95rem;
+        }
+
+        .nav-controls {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+            background: rgba(13, 17, 23, 0.95);
+            padding: 10px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: var(--neon-cyan);
+            color: var(--bg-dark);
+            box-shadow: 0 0 15px var(--neon-cyan);
+        }
+
+        .nav-btn:disabled {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .slide-counter {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--text-main);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            transition: width 0.4s ease;
+            z-index: 100;
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.5rem; }
+            .content { padding: 25px 20px; }
+        }
+    </style>
+</head>
+<body>
+  <!-- Кнопка возврата на главную -->
+<div style="position:fixed;top:12px;left:12px;z-index:99999;">
+  <a href="index.html" style="
+    display:inline-block;
+    padding:10px 18px;
+    background:#ffd866;
+    color:#1e1e2e;
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:bold;
+    font-family:sans-serif;
+    font-size:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    transition:background 0.2s;
+  " onmouseover="this.style.background='#fff'" 
+     onmouseout="this.style.background='#ffd866'">
+    ← На главную
+  </a>
+</div>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="presentation" id="presentation">
+        
+        <!-- Слайд 1: Титульный -->
+        <section class="slide slide-1 active">
+            <div class="content" style="text-align: center;">
+                <h1>Переход с JSON на TXT</h1>
+                <p style="font-size: 1.3rem; color: var(--text-muted); margin-bottom: 30px;">Как меняется программа при смене формата хранения данных</p>
+                <div class="grid-2" style="margin-top: 30px;">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Было</span>
+                        <h3 style="color: var(--neon-magenta);">JSON файл</h3>
+                        <p style="margin: 0;">Готовая структура данных, словари и списки</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Стало</span>
+                        <h3 style="color: var(--neon-cyan);">TXT файл</h3>
+                        <p style="margin: 0;">Простой текст, нужна ручная обработка</p>
+                    </div>
+                </div>
+                <div style="margin-top: 30px; color: var(--text-muted); font-size: 1rem;">
+                    Используйте стрелки ← → или кнопки внизу для навигации
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 2: Структура данных -->
+        <section class="slide slide-2">
+            <div class="content">
+                <h2>📦 Как хранятся данные</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">JSON формат</span>
+                        <pre><code>{
+  <span class="string">"О планетах"</span>: {
+    <span class="string">"текст"</span>: <span class="string">"Что если вода..."</span>,
+    <span class="string">"теги"</span>: [<span class="string">"Марс"</span>, <span class="string">"гипотезы"</span>]
+  }
+}</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Словарь с вложенной структурой</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">TXT формат</span>
+                        <pre><code>О планетах
+Что если вода на Марсе это признак жизни?
+---
+О чёрных дырах
+Сингулярность на горизонте событий...
+---</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Простой текст с разделителями</p>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Важно:</span> В TXT файле <b>нет тегов</b> — только название и текст заметки. Каждая заметка отделена строкой <code>---</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 3: Загрузка данных -->
+        <section class="slide slide-3">
+            <div class="content">
+                <h2>📥 Загрузка данных при запуске</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">JSON версия</span>
+                        <pre><code><span class="keyword">import</span> json
+
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes.json"</span>, <span class="string">"r"</span>) <span class="keyword">as</span> file:
+    notes = json.<span class="function">load</span>(file)
+
+<span class="comment"># notes — готовый словарь!</span></code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Одна команда — вся структура загружена</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">TXT версия</span>
+                        <pre><code>notes = {}
+
+<span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes.txt"</span>, <span class="string">"r"</span>) <span class="keyword">as</span> file:
+    lines = file.<span class="function">readlines</span>()
+
+<span class="comment"># Парсим файл построчно</span>
+i = <span class="number">0</span>
+<span class="keyword">while</span> i < len(lines):
+    name = lines[i].<span class="function">strip</span>()
+    text = lines[i+<span class="number">1</span>].<span class="function">strip</span>()
+    notes[name] = text
+    i += <span class="number">3</span>  <span class="comment"># Пропускаем разделитель ---</span></code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Нужно вручную разобрать каждую строку</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Изменение:</span> Вместо <code>json.load()</code> используем <code>readlines()</code> + цикл для разбора текста</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 4: Функция add_note() -->
+        <section class="slide slide-4">
+            <div class="content">
+                <h2>➕ Функция add_note() — создание заметки</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">JSON версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">add_note</span>():
+    note_name, ok = QInputDialog.<span class="function">getText</span>(...)
+    <span class="keyword">if</span> ok <span class="keyword">and</span> note_name != <span class="string">""</span>:
+        notes[note_name] = {
+            <span class="string">"текст"</span>: <span class="string">""</span>, 
+            <span class="string">"теги"</span>: []
+        }
+        list_notes.<span class="function">addItem</span>(note_name)</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Создаём вложенный словарь</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">TXT версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">add_note</span>():
+    note_name, ok = QInputDialog.<span class="function">getText</span>(...)
+    <span class="keyword">if</span> ok <span class="keyword">and</span> note_name != <span class="string">""</span>:
+        notes[note_name] = <span class="string">""</span>  <span class="comment"># Просто пустая строка</span>
+        list_notes.<span class="function">addItem</span>(note_name)</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Создаём простую запись: название → текст</p>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Изменение:</span> Вместо словаря <code>{"текст": "", "теги": []}</code> теперь просто пустая строка <code>""</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 5: Функция show_note() -->
+        <section class="slide slide-5">
+            <div class="content">
+                <h2>👁️ Функция show_note() — отображение заметки</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">JSON версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">show_note</span>():
+    name = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+    field_text.<span class="function">setText</span>(notes[name][<span class="string">"текст"</span>])
+    list_tags.<span class="function">clear</span>()
+    list_tags.<span class="function">addItems</span>(notes[name][<span class="string">"теги"</span>])</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Обращаемся к ключу <code>"текст"</code></p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">TXT версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">show_note</span>():
+    name = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+    field_text.<span class="function">setText</span>(notes[name])  <span class="comment"># Просто значение</span>
+    <span class="comment"># list_tags больше нет!</span></code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Значение — это и есть текст</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Изменение:</span> Вместо <code>notes[name]["текст"]</code> теперь просто <code>notes[name]</code>. Работа с тегами удалена.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 6: Функция save_note() -->
+        <section class="slide slide-6">
+            <div class="content">
+                <h2>💾 Функция save_note() — сохранение заметки</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">JSON версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">save_note</span>():
+    <span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        notes[key][<span class="string">"текст"</span>] = field_text.<span class="function">toPlainText</span>()
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            json.<span class="function">dump</span>(notes, file, 
+                     ensure_ascii=<span class="keyword">False</span>,
+                     sort_keys=<span class="keyword">True</span>)</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Обновляем ключ <code>"текст"</code> и сохраняем JSON</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">TXT версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">save_note</span>():
+    <span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        notes[key] = field_text.<span class="function">toPlainText</span>()
+        
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes.txt"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            <span class="keyword">for</span> name, text <span class="keyword">in</span> notes.<span class="function">items</span>():
+                file.<span class="function">write</span>(name + <span class="string">"\n"</span>)
+                file.<span class="function">write</span>(text + <span class="string">"\n"</span>)
+                file.<span class="function">write</span>(<span class="string">"---\n"</span>)</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Обновляем значение и пишем TXT построчно</p>
+                    </div>
+                </div>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Изменение:</span> Вместо <code>json.dump()</code> пишем файл вручную: название → текст → разделитель <code>---</code></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 7: Функция del_note() -->
+        <section class="slide slide-7">
+            <div class="content">
+                <h2>🗑️ Функция del_note() — удаление заметки</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">JSON версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">del_note</span>():
+    <span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        <span class="keyword">del</span> notes[key]
+        list_notes.<span class="function">clear</span>()
+        list_tags.<span class="function">clear</span>()
+        field_text.<span class="function">clear</span>()
+        list_notes.<span class="function">addItems</span>(notes)
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            json.<span class="function">dump</span>(notes, file, ...)</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Удаляем из словаря, сохраняем JSON</p>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">TXT версия</span>
+                        <pre><code><span class="keyword">def</span> <span class="function">del_note</span>():
+    <span class="keyword">if</span> list_notes.<span class="function">selectedItems</span>():
+        key = list_notes.<span class="function">selectedItems</span>()[<span class="number">0</span>].<span class="function">text</span>()
+        <span class="keyword">del</span> notes[key]
+        list_notes.<span class="function">clear</span>()
+        field_text.<span class="function">clear</span>()
+        list_notes.<span class="function">addItems</span>(notes)
+        
+        <span class="keyword">with</span> <span class="function">open</span>(<span class="string">"notes.txt"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> file:
+            <span class="keyword">for</span> name, text <span class="keyword">in</span> notes.<span class="function">items</span>():
+                file.<span class="function">write</span>(name + <span class="string">"\n"</span>)
+                file.<span class="function">write</span>(text + <span class="string">"\n"</span>)
+                file.<span class="function">write</span>(<span class="string">"---\n"</span>)</code></pre>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">Удаляем из словаря, пишем TXT заново</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <p style="margin: 0;"><span class="highlight">Изменение:</span> Логика та же, но вместо <code>json.dump()</code> — ручная запись в TXT. Работа с <code>list_tags</code> удалена.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 8: Сравнительная таблица -->
+        <section class="slide slide-8">
+            <div class="content">
+                <h2>📊 Итоговое сравнение</h2>
+                
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Аспект</th>
+                            <th style="color: var(--neon-magenta);">JSON версия</th>
+                            <th style="color: var(--neon-cyan);">TXT версия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>Структура данных</b></td>
+                            <td>Словарь с вложенными словарями</td>
+                            <td>Словарь: название → текст</td>
+                        </tr>
+                        <tr>
+                            <td><b>Загрузка</b></td>
+                            <td><code>json.load(file)</code></td>
+                            <td><code>readlines()</code> + цикл разбора</td>
+                        </tr>
+                        <tr>
+                            <td><b>Сохранение</b></td>
+                            <td><code>json.dump(notes, file)</code></td>
+                            <td>Цикл <code>write()</code> с разделителями</td>
+                        </tr>
+                        <tr>
+                            <td><b>Доступ к тексту</b></td>
+                            <td><code>notes[name]["текст"]</code></td>
+                            <td><code>notes[name]</code></td>
+                        </tr>
+                        <tr>
+                            <td><b>Теги</b></td>
+                            <td>✅ Есть (список)</td>
+                            <td>❌ Нет</td>
+                        </tr>
+                        <tr>
+                            <td><b>Сложность кода</b></td>
+                            <td>Проще (готовая структура)</td>
+                            <td>Сложнее (нужен парсинг)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="warning-box">
+                    <p style="margin: 0;"><span class="highlight-magenta">Вывод:</span> JSON удобнее для сложных данных, но TXT проще для понимания (можно открыть в блокноте)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 9: Итог -->
+        <section class="slide slide-9">
+            <div class="content">
+                <h2>✨ Что изменилось в программе</h2>
+                
+                <div class="grid-2">
+                    <div class="card" style="border-color: var(--neon-magenta);">
+                        <span class="badge badge-magenta">Удалено</span>
+                        <ul style="margin: 10px 0 0 0;">
+                            <li>Импорт библиотеки <code>json</code></li>
+                            <li>Работа с тегами (все функции)</li>
+                            <li>Вложенная структура словаря</li>
+                            <li>Методы <code>json.load()</code> и <code>json.dump()</code></li>
+                        </ul>
+                    </div>
+                    <div class="card" style="border-color: var(--neon-cyan);">
+                        <span class="badge badge-cyan">Добавлено</span>
+                        <ul style="margin: 10px 0 0 0;">
+                            <li>Ручной парсинг TXT файла при загрузке</li>
+                            <li>Ручная запись TXT файла при сохранении</li>
+                            <li>Разделитель <code>---</code> между заметками</li>
+                            <li>Упрощённая структура: название → текст</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; padding: 20px; background: rgba(254, 228, 64, 0.05); border: 1px dashed var(--neon-yellow); border-radius: 12px; text-align: center;">
+                    <p style="margin: 0; color: var(--neon-yellow); font-size: 1.2rem; font-weight: bold;">
+                        💡 Главная идея: TXT файл требует ручной обработки,<br>
+                        но зато его можно прочитать без специальных программ
+                    </p>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center;">
+                    <p style="color: var(--text-muted); font-size: 1rem;">Отличная работа! Теперь вы понимаете разницу между JSON и TXT подходами.</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Панель навигации -->
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">&#10094;</button>
+        <span class="slide-counter" id="counter">1 / 9</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">&#10095;</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const counter = document.getElementById('counter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        function updatePresentation() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                }
+            });
+
+            counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+            
+            const progress = ((currentSlide + 1) / totalSlides) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+        }
+
+        function changeSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+            updatePresentation();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                changeSlide(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                changeSlide(-1);
+            }
+        });
+
+        updatePresentation();
+    </script>
+</body>
+</html>
